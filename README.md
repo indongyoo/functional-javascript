@@ -15,3 +15,6 @@
 
 ### 함수형 자바스크립트 라이브러리 - Partial.js
  - https://marpple.github.io/partial.js
+
+### 함수형 자바스크립트 심플 세트 - window.functions.js
+ - http://github.com/marpple/window.functions.js
