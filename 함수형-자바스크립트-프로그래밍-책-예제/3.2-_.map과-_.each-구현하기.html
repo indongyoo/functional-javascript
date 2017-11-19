@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="lodash.js"></script>
+  <script>var lodash = _;</script>
+  <script src="underscore.js"></script>
+  <script>
+    var list1 = {};
+    list1[0] = 1, list1[1] = 2, list1[2] = 3, list1.length = 3;
+    list1.pop = function() {
+      delete this[--this.length];
+    };
+  </script>
+</head>
+<body>
+
+## 3.2.1 ArrayLike와 Underscore.js의 콘셉트
+
+##### [코드 3-23]
+<script>//```javascript
+console.log(list1[0] == 1 && list1[1] == 2 && list1[2] == 3);
+// true
+console.log(list1.length == 3);
+// true
+list1.pop();
+console.log(list1.length);
+// 2
+for (var i = 0; i < list1.length; i++) {
+  console.log(list1[i]);
+}
+// 1
+// 2
+</script>```
+
+##### [코드 3-24]
+<script>//```javascript
+console.log(list1.constructor == Array);
+// false
+</script>```
+
+##### [코드 3-25]
+<script>//```javascript
+var list1 = {};
+list1[0] = 1, list1[1] = 2, list1[2] = 3, list1.length = 3;
+list1.pop = function() {
+  delete this[this.length];
+};
+</script>```
+
+##### [코드 3-26]
+<script>//```javascript
+// 1. {}
+var d1 = { name: 'PJ', age: 25 };
+
+// 2. []
+var d2 = [1, 2, 3];
+
+// 3. arguments
+var d3 = function() {
+  return arguments;
+}(1, 2, 3);
+
+// 4. ArrayLike
+var d4 = $('div');
+var d5 = { length: 3 };
+d5[0] = 1, d5[1] = 2, d5[2] = 3;
+var d6 = "hi";
+</script>```
+
+##### [코드 3-27]
+<script>//```javascript
+console.log(d3[0]); // 1
+console.log(d3[1]); // 2
+console.log(d3[2]); // 3
+console.log(d3.push); // undefined (push가 없다.)
+
+d4.concat(4); // d4.concat is not a function (jQuery 객체는 배열이 아니다.)
+</script>```
+
+##### [코드 3-28] Underscore.js의 ArrayLike
+<script>//```javascript
+var MAX_ARRAY_INDEX = Math.pow(2, 53) - 1;
+var isArrayLike = function(list) {
+  var length = list == null ? void 0 : list.length;
+  return typeof length == 'number' && length >= 0 && length <= MAX_ARRAY_INDEX;
+};
+</script>```
+
+##### [코드 3-29]
+<script>//```javascript
+_.each(function(a, b) {}, function() {
+  console.log(arguments);
+});
+// [undefined, 0, Object]
+// [undefined, 1, Object]
+
+_.keys(10);
+// []
+
+_.keys(null);
+// []
+</script>```
+
+##### [코드 3-30]
+<script>//```javascript
+_.each({ length: 4 }, function() {
+  console.log(arguments);
+});
+// [undefined, 0, Object]
+// [undefined, 1, Object]
+// [undefined, 2, Object]
+// [undefined, 3, Object]
+
+_.each(0, function() {
+  console.log(arguments);
+});
+// 아무 일 없음
+
+_.each(undefined, function() {
+  console.log(arguments);
+});
+// 아무 일 없음
+
+_.each(NaN, function() {
+  console.log(arguments);
+});
+// 아무 일 없음
+</script>```
+
+<script>//```javascript
+function func1(data) {
+  // 인자로 들어온 data가 null이더라도 체크하지 않고 흘려보낸다.
+  var keys = _.keys(data); // _.keys에 들어가면 [] 빈 배열로 변해서
+  // keys.length에서 에러 나지 않음
+  for (var i = 0; i < keys.length; i++) {
+    // 루프를 돌지 않음
+  }
+  // 만일 _.keys 대신 Object.keys()를 사용했다면 에러가 남
+  // Uncaught TypeError: Cannot convert undefined or null to object
+}
+func1(null);
+</script>```
+
+<script>//```javascript
+function func2(data) {
+  for (var i = 0, len = data.length; i < len; i++) {}
+// Uncaught TypeError: Cannot read property 'length' of undefined
+}
+func2(undefined);
+</script>```
+
+<script>//```javascript
+function func2(data) {
+  for (var i = 0, len = getLength(data); i < len; i++) {}
+  // 에러나지 않음
+}
+func2(undefined);
+
+function getLength(list) {
+  return list == null ? undefined : list.length;
+}
+</script>```
+
+##### [코드 3-31]
+<script>//```javascript
+_.each([1]);
+// Uncaught TypeError: iteratee is not a function(…)
+</script>```
+
+## 3.2.2 _.map 만들기
+
+##### [코드 3-32]
+<script>//```javascript
+_.map = function(list, iteratee) {
+  var new_list = [];
+  for (var i = 0, len = list.length; i < len; i++) {
+    new_list.push(iteratee(list[i], i, list));
+  }
+  return new_list;
+};
+</script>```
+
+##### [코드 3-33] _.map 구현하기
+<script>//```javascript
+var _ = {};
+
+var MAX_ARRAY_INDEX = Math.pow(2, 53) - 1;
+function getLength(list) {
+  return list == null ? void 0 : list.length; // void 0의 결과는 undefined
+}
+var isArrayLike = function(list) {
+  var length = getLength(list);
+  return typeof length == 'number' && length >= 0 && length <= MAX_ARRAY_INDEX;
+};
+
+_.map = function(data, iteratee) {
+  var new_list = [];
+  if (isArrayLike(data)) {
+    for (var i = 0, len = data.length; i < len; i++) {
+      new_list.push(iteratee(data[i], i, data));
+    }
+  } else {
+    for (var key in data) {
+      if (data.hasOwnProperty(key)) new_list.push(iteratee(data[key], key, data));
+    }
+  }
+  return new_list;
+};
+
+_.map([1, 2, 3], function(v) {
+  return v * 2
+});
+// [2, 4, 6]
+_.map({a: 3, b: 2, c: 1}, function(v) {
+  return v * 2
+});
+// [6, 4, 2]
+</script>```
+
+제법 그럴싸해졌다. 이제는 객체도 사용할 수 있는 `_.map`이 되었다. 추가된 `else`쪽을 살펴보면 `for in`문을 통해 `data`가 가진 `key`들의 크기만큼 루프를 돌 것이다. 그중 `hasOwnProperty` 메서드를 통해 객체가 직접 가진 `key`인지를 체크한다. 객체가 직접 가진 `key`인지를 체크한다는 것은 객체의 `prototype`에 있는 값을 제외하기 위해서이다.
+
+Underscore.js는 `_.map`의 세 번째 인자로 `iteratee`에서 사용할 `this`를 전달할 수 있지만 우리는 그렇게 구현하지 않겠다. this를 적용한 새로운 함수를 만드는 것은 작지만 부하가 있다. 그 함수를 실행할 때도 부하가 생긴다. 게다가 반복문에서 사용하는 `iteratee`이지 않은가. 반복의 수가 많을수록 그 부하도 쌓이게 된다. 개발자에게 'iteratee에서의 this 다루기'를 위임하고 최대한 깨끗한 함수만 받도록 하자.
+
+***
+##### 참고
+Underscore.js는 인자로 `context`가 넘어올 경우에만 `bind`를 하도록 `if`를 통해 부하를 최소화했다. 우린 더욱 최소화하자. 개발자에게 위임하면 `if` 마저도 줄일 수 있다. 어차피 `this`를 넘기는 것도 개발자고 `iteratee`를 구현하는 것도 개발자이다. 그 분기를 굳이 함수 내부에 둘 필요가 없다.
+***
+
+##### [코드 3-34]
+<script>//```javascript
+_.map([1, 2, 3], function(v) {
+  return v * this;
+}.bind(5));
+// [5, 10, 15]
+</script>```
+
+## 3.2.3 쓸모없어 보이는 함수 사용하기
+
+##### [코드 3-35]
+<script>//```javascript
+_.identity = function(v) {
+  return v;
+};
+_.idtt = _.identity;
+_.values = function(list) {
+  return _.map(list, _.identity);
+};
+
+console.log(_.values({id: 5, name: "JE", age: 27}));
+// [5, "JE", 27]
+</script>```
+
+##### [코드 3-36]
+<script>//```javascript
+_.args0 = _.identity;
+_.args1 = function(a, b) {
+  return b;
+};
+_.keys = function(list) {
+  return _.map(list, _.args1)
+};
+
+console.log(_.keys([3, 2, 1]));
+// ["0", "1", "2"]
+console.log(_.keys({id: 5, name: "JE", age: 27}));
+// ["id", "name", "age"]
+</script>```
+
+## 3.2.4 _.each 만들기
+
+##### [코드 3-37] _.each 만들기
+<script>//```javascript
+_.map = function(data, iteratee) {
+  var new_list = [];
+  if (isArrayLike(data)) {
+    for (var i = 0, len = data.length; i < len; i++) {
+      new_list.push(iteratee(data[i], i, data));
+    }
+  } else {
+    for (var key in data) {
+      if (data.hasOwnProperty(key)) new_list.push(iteratee(data[key], key, data));
+    }
+  }
+  return new_list;
+};
+_.each = function(data, iteratee) {
+  if (isArrayLike(data)) {
+    for (var i = 0, len = data.length; i < len; i++) {
+      iteratee(data[i], i, data);
+    }
+  } else {
+    for (var key in data) {
+      if (data.hasOwnProperty(key)) iteratee(data[key], key, data);
+    }
+  }
+  return data;
+};
+</script>```
+
+##### [코드 3-38]
+<script>//```javascript
+_.each([1, 2, 3], console.log);
+// 1 0 [1, 2, 3]
+// 2 1 [1, 2, 3]
+// 3 2 [1, 2, 3]
+
+_.each({id: 5, name: "JE", age: 27}, console.log);
+// 5 "id" { id: 5, name: "JE", age: 27 }
+// "JE" "name" { id: 5, name: "JE", age: 27 }
+// 27 "age" { id: 5, name: "JE", age: 27 }
+</script>```
+
+## 3.2.5 함수로 함수 만들기 bloop
+
+##### [코드 3-39] bloop로 _.map과 _.each 만들기
+<script>//```javascript
+function bloop(new_data, body) {
+  return function(data, iteratee) {
+    var result = new_data(data);
+    if (isArrayLike(data)) {
+      for (var i = 0, len = data.length; i < len; i++) {
+        body(iteratee(data[i], i, data), result);
+      }
+    } else {
+      for (var key in data) {
+        if (data.hasOwnProperty(key))
+          body(iteratee(data[key], key, data), result);
+      }
+    }
+    return result;
+  }
+}
+
+_.map = bloop(function() { // bloop의 두 부분을 _.map에 필요한 로직으로 설정
+  return [];
+}, function(val, obj) {
+  return obj.push(val);
+});
+
+_.each = bloop(function(v) { // bloop의 두 부분을 _.each에 필요한 로직으로 설정
+  return v;
+}, function() {});
+</script>```
+
+##### [코드 3-40]
+<script>//```javascript
+bloop(
+  function(v) { return v; },
+  function() {}
+)(
+  [5, 6, 7],
+  function(v) { console.log(v) }
+);
+// 5
+// 6
+// 7
+</script>```
+
+##### [코드 3-41]
+<script>//```javascript
+_.array = function() { return [] };
+_.push_to = function(val, obj) {
+  obj.push(val);
+  return val;
+};
+_.noop = function() {};
+
+_.map = bloop(_.array, _.push_to);
+_.each = bloop(_.identity, _.noop);
+</script>```
+
+## 3.2.6 Object.keys
+
+##### [코드 3-42] _.keys와 Object.keys
+<script>//```javascript
+console.log(_.keys({ name: "PJ" }));
+// ["name"];
+console.log(Object.keys({ name: "PJ" }));
+// ["name"];
+
+console.log(_.keys(10));
+// []
+console.log(Object.keys(10));
+// []
+
+console.log(_.keys(null));
+// []
+console.log(Object.keys(null));
+// Uncaught TypeError: Cannot convert undefined or null to object
+</script>```
+
+##### [코드 3-43] Underscore.js의 _.keys
+<script>//```javascript
+_.isFunction = function (obj) {
+  return toString.call(obj) === '[object Function]';
+};
+
+// Optimize `isFunction` if appropriate. Work around some typeof bugs in old v8,
+// IE 11 (#1621), and in Safari 8 (#1929).
+if (typeof /./ != 'function' && typeof Int8Array != 'object') {
+  _.isFunction = function (obj) {
+    return typeof obj == 'function' || false;
+  };
+}
+
+_.isObject = function(obj) {
+  var type = typeof obj;
+  return type === 'function' || type === 'object' && !!obj;
+};
+
+_.has = function(obj, key) {
+  return obj != null && Object.prototype.hasOwnProperty.call(obj, key);
+};
+
+// Keys in IE < 9 that won't be iterated by `for key in ...` and thus missed.
+var hasEnumBug = !{toString: null}.propertyIsEnumerable('toString');
+var nonEnumerableProps = ['valueOf', 'isPrototypeOf', 'toString',
+  'propertyIsEnumerable', 'hasOwnProperty', 'toLocaleString'];
+
+function collectNonEnumProps(obj, keys) {
+  var nonEnumIdx = nonEnumerableProps.length;
+  var constructor = obj.constructor;
+  var proto = (_.isFunction(constructor) && constructor.prototype) || Object.prototype;
+
+  // Constructor is a special case.
+  var prop = 'constructor';
+  if (_.has(obj, prop) && !_.contains(keys, prop)) keys.push(prop);
+
+  while (nonEnumIdx--) {
+    prop = nonEnumerableProps[nonEnumIdx];
+    if (prop in obj && obj[prop] !== proto[prop] && !_.contains(keys, prop)) {
+      keys.push(prop);
+    }
+  }
+}
+
+_.keys = function(obj) {
+  if (!_.isObject(obj)) return [];
+  if (Object.keys) return Object.keys(obj);
+  var keys = [];
+  for (var key in obj) if (_.has(obj, key)) keys.push(key);
+  // Ahem, IE < 9.
+  if (hasEnumBug) collectNonEnumProps(obj, keys);
+  return keys;
+};
+</script>```
+
+##### [코드 3-44]
+<script>//```javascript
+_.keys = function(data) {
+  return data ? Object.keys(data) : [];
+};
+</script>```
+
+##### [코드 3-45]
+<script>//```javascript
+_.isObject = function(obj) {
+  var type = typeof obj;
+  return type === 'function' || type === 'object' && !!obj;
+};
+_.keys = function(obj) {
+  return _.isObject(obj) ? Object.keys(obj) : [];
+};
+
+console.log(_.keys({ name: "PJ" }));
+// ["name"];
+console.log(_.keys([1, 2, 3]));
+// ["0", "1", "2"]
+console.log(_.keys(10));
+// []
+console.log(_.keys(null));
+// []
+</script>```
+
+## 3.2.7 bloop 개선하기
+
+##### [코드 3-46]
+<script>//```javascript
+function bloop(new_data, body) {
+  return function(data, iteratee) {
+    var result = new_data(data);
+    if (isArrayLike(data)) {
+      for (var i = 0, len = data.length; i < len; i++) {
+        body(iteratee(data[i], i, data), result);
+      }
+    } else {
+      for (var key in data) {
+        if (data.hasOwnProperty(key))
+          body(iteratee(data[key], key, data), result);
+      }
+    }
+    return result;
+  }
+}
+</script>```
+
+##### [코드 3-47]
+<script>//```javascript
+var lodashObj = lodash([1]);
+/*
+ lodash.prototype.each = function() {};
+ lodash.prototype.map = function() {};
+ lodash.prototype.filter = function() {};
+ lodash.prototype.reject = function() {};
+ ...
+ */
+
+var keys1 = [];
+for (var key in lodashObj) {
+  keys1.push(key);
+}
+console.log(keys1.length);
+// 323
+
+var keys2 = [];
+for (var key in lodashObj) {
+  if (lodashObj.hasOwnProperty(key)) keys2.push(key);
+}
+console.log(keys2.length);
+// 5
+</script>```
+
+##### [코드 3-48] _.keys로 bloop 개선하기
+<script>//```javascript
+function bloop(new_data, body) {
+  return function(data, iteratee) {
+    var result = new_data(data);
+    if (isArrayLike(data)) {
+      for (var i = 0, len = data.length; i < len; i++) {
+        body(iteratee(data[i], i, data), result);
+      }
+    } else {
+      for (var i = 0, keys = _.keys(data), len = keys.length; i < len; i++) {
+        body(iteratee(data[keys[i]], keys[i], data), result);
+      }
+    }
+    return result;
+  }
+}
+_.map = bloop(_.array, _.push_to);
+_.each = bloop(_.identity, _.noop);
+
+_.map(lodashObj, function(val, key) {
+  return key;
+});
+// ["__wrapped__", "__actions__", "__chain__", "__index__", "__values__"]
+
+_.map({a: 3, b: 2, c: 1}, function(v) {
+  return v * 2
+});
+// [6, 4, 2]
+
+_.each({id: 5, name: "JE", age: 27}, console.log);
+// 5 "id" { id: 5, name: "JE", age: 27 }
+// "JE" "name" { id: 5, name: "JE", age: 27 }
+// 27 "age" { id: 5, name: "JE", age: 27 }
+</script>```
+
+## 3.28 중간 정리
+
+</body>
+</html>

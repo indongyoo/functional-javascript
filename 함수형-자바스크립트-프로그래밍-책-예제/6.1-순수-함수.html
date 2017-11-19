@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="partial.js"></script>
+</head>
+<body>
+
+## 6.1.1 순수 함수와 부수효과
+
+## 6.1.2 순수 함수와 순수 함수가 아닌 함수
+
+##### [코드 6-1]
+<script>//```javascript
+// 순수 함수
+function add(a, b) {
+  return a + b;
+}
+
+// 순수 함수가 아닌 함수
+function add2(obj, value) {
+  obj.value = obj.value + value;
+  return obj.value;
+}
+
+// 작은 차이지만 순수 함수
+function add3(obj, value) {
+  return obj.value + value;
+}
+
+// 작은 차이지만 순수 함수 2
+function add4(obj, value) {
+  return { value: obj.value + value };
+}
+</script>```
+
+</body>
+</html>

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="partial.js"></script>
+  <script>
+    $.post = function(url, data) {
+      console.log(data);
+      return Promise.resolve(data);
+    }
+  </script>
+</head>
+<body>
+
+## 7.1.1 if 대신 _.each 사용하기
+
+##### [코드 7-1]
+```html
+<script>
+function hi(list) {
+  if (list && list.forEach) { // 이 if 문이 없고 null등의 값이 오면 에러가 날 수 있음
+    list.forEach(console.log);
+    return list;
+  }
+}
+hi(undefined); // if 문에 걸려 실행 안됨
+hi([1]); // 1 0 [1]
+</script>
+```
+
+##### [코드 7-2]
+```html
+<script>
+function hi2(list) {
+  return _.each(list, console.log);
+}
+hi2(undefined); // 실행 안되고 에러도 안나고
+hi2([1]); // 1 0 [1]
+
+var hi3 = _.each(console.log);
+hi3(undefined); // 실행 안되고 에러도 안나고
+hi3([1]); // 1 0 [1]
+</script>
+```
+
+## 7.1.2 선택된 항목들 지우기와 _.map
+
+##### [코드 7-3] task_app
+```html
+<div id="task_app">
+  <button type="button" class="remove">삭제</button>
+  <ul class="task_list">
+    <li task_id="3">
+      <input type="checkbox" checked>
+    </li>
+    <li task_id="2">
+      <input type="checkbox">
+    </li>
+    <li task_id="1">
+      <input type="checkbox" checked>
+    </li>
+  </ul>
+</div>
+
+<script>
+$('#task_app').on('click', '> button.remove', function() {
+  var $inputs = $('#task_app .task_list input:checked');
+  var lis = _.map($inputs, function(input) {
+    return input.closest('li');
+  });
+  var ids = _.map(lis, function(li) {
+    return parseInt(li.getAttribute('task_id'));
+  });
+  $.post('/api/remove_tasks', ids).then(function() {
+    $(lis).remove();
+  });
+});
+</script>
+```
+
+##### [코드 7-4] _.tap
+```html
+<script>
+_.go(10,
+  _.tap(
+    function(a) { return a * a },
+    console.log), // 100
+  console.log); // 10
+</script>
+```
+
+##### [코드 7-5] _.pipe 버전
+```html
+<script>
+$('#task_app').unbind('click');
+
+$('#task_app').on('click', '> button.remove', _.pipe(
+  function() { return $('#task_app .task_list input:checked'); },
+  _.map(function(input) { return input.closest('li'); }),
+  _.tap(
+    _.map(function(li) { return parseInt(li.getAttribute('task_id')); }),
+    _($.post, '/api/remove_tasks')),
+  function(lis) { $(lis).remove(); }
+));
+</script>
+```
+
+##### [코드 7-6] _.pipe 버전 2
+```html
+<script>
+$('#task_app').unbind('click');
+
+$('#task_app').on('click', '> button.remove', __(
+  _.c('#task_app .task_list input:checked'), $,
+  _.map(_('closest', 'li')),
+  _.tap(
+    _.map(__(_('getAttribute', 'task_id'), parseInt)),
+    _($.post, '/api/remove_tasks')),
+  $, _('remove')));
+</script>
+```
+
+## 7.1.3 SQL의 insert 문 만들기와 _.map
+
+##### [코드 7-7] sql.insert에서 사용할 함수들
+<script>//```javascript
+_.wrap_arr = function(v) { return _.is_array(v) ? v : [v]; };
+// 배열이 아니면 배열로 감싸서 리턴하는 함수
+
+_.flatten([[1, 2, 3], [4, [5], 6]]);
+// [1, 2, 3, 4, 5, 6]
+
+_.uniq([1, 2, 1, 4, 1, 3]);
+// [1, 2, 4, 3]
+
+_.keys({one: 1, two: 2, three: 3});
+// ["one", "two", "three"]
+
+_.values({one: 1, two: 2, three: 3});
+// [1, 2, 3]
+
+_.map_object({x: 1, y: 2}, function(v) { return v + 1; });
+// {x: 2, y: 3}
+
+_.object([['a', 1], ['b', 2]]);
+// {a: 1, b: 2}
+</script>```
+
+##### [코드 7-8] sql.insert
+<script>//```javascript
+var sql = {};
+sql.insert = function(table, data) {
+  data = _.wrap_arr(data);
+
+  // 사용될 컬럼명들 뽑기
+  var columns = _.go(data,  // data = [{x: 0}, {y: 1}, {desc: "설명1", x: 1}] 라고 가정
+    _.map(_.keys),          // [['x'], ['y'], ['desc', 'x']] data를 모두 돌며 keys를 뽑음
+    _.flatten,              // ['x', 'y', 'desc', 'x'] Array 깊이 제거
+    _.uniq);                // ['x', 'y', 'desc'] 중복 제거
+
+  // 넘어오지 않은 값이 있을 경우 DEFAULT를 채우기 위해 defaults 만들기
+  var defaults = _.go(columns, // columns는 ['x', 'y', 'desc'] 이 상태
+    _.map(v=>[v, 'DEFAULT']),
+    // [['x', 'DEFAULT'], ['y': 'DEFAULT'], ['desc', 'DEFAULT']]
+
+    _.object);
+    // { x: "DEFAULT", y: "DEFAULT", desc: "DEFAULT" }
+
+  // data = [{x: 0}, {y: 1}, {desc: "설명1", x: 1}] 라고 가정
+  var sql_values = _.map(data, _.pipe(
+      _.idtt, // (val, idx, list) 중 첫 번째 인자만 꺼냄
+
+      // 아래 (1, DEFAULT, '설명1') 까지의 코멘트들은 data[2]가 v일 때 기준
+      _.map_object(v => _.is_string(v) ? "'" + v + "'" : v),
+      // {desc: "'설명1'", x: 1}
+
+      v => _.extend({}, defaults, v),
+      // {x: 1, y: "DEFAULT", desc: "'설명1'"} 순서도 defaults 기준으로 맞추면서 채움
+
+      _.values, // [1, "DEFAULT", "'설명1'"] 순서에 맞춰 values 뽑기
+
+      v => '(' + v.join(", ") + ')') // (1, DEFAULT, '설명1')
+    )
+    // _.map 종료 [(0, DEFAULT, DEFAULT), (DEFAULT, 1, DEFAULT), (1, DEFAULT, '설명1')]
+    .join(', ');
+    // (0, DEFAULT, DEFAULT), (DEFAULT, 1, DEFAULT), (1, DEFAULT, '설명1')
+
+  return 'insert into "'+table+'" ("'+columns.join('", "')+'") values '+sql_values;
+};
+
+console.log(
+  sql.insert('files', {
+    name: "image.png",
+    type: "image/png"
+  })
+);
+// insert into "files" ("name", "type") values ('image.png', 'image/png')
+
+console.log(
+  sql.insert('files', [
+    { name: "image.png", type: "image/png" },
+    { type: "image/jpeg", name: "image1.jpg" }, // type, name 순서가 다르게 들어감
+    { type: "image/png" } // name 없음
+  ])
+);
+// insert into "files" ("name", "type") values
+//   ('image.png', 'image/png'), ('image1.jpg', 'image/jpeg'), (DEFAULT, 'image/png')
+//                                순서 맞춰주고                    알아서 채워주도록
+
+/* 위 코드에서 주석을 제거하고 간결하게 표현한 sql.insert 함수 */
+sql.insert = function(table, data) {
+  data = _.wrap_arr(data);
+  var columns = _.go(data, _.map(_.keys), _.flatten, _.uniq);
+  var defaults = _.object(_.map(columns, v=>[v, "DEFAULT"]));
+
+  return 'insert into "'+table+'" ("' + columns.join('", "') + '") values '+
+    _.map(data, __(_.idtt,
+      _.map_object(v => _.is_string(v) ? "'" + v + "'" : v),
+      v => _.extend({}, defaults, v),
+      _.values, v => '(' + v.join(', ') + ')'
+    )).join(', ');
+};
+</script>```
+
+## 7.1.4 그룹 채팅 초대와 _.map
+
+##### [코드 7-9] 단체 채팅 초대
+<script>//```javascript
+var invite = function(chat_id, users) {
+  return sql.insert('chats_users', _.map(users, user => ({
+    user_id: user.id, chat_id: chat_id
+  })));
+};
+
+console.log(
+  invite(8, [{ id: 1, name: "id" }, { id: 5, name: "pj" }, { id: 6, name: "bj" }])
+);
+// insert into "chats_users" ("user_id", "chat_id") values (1, 8), (5, 8), (6, 8)
+
+// Partial.js라면 _.map의 부분 커링과 인자 추가 기능이 있어 아래처럼 작성 가능
+var invite = _.pipe(
+  _.map((chat_id, user) => ({ user_id: user.id, chat_id: chat_id })),
+  _(sql.insert, 'chats_users'));
+
+console.log(
+  invite(12, [{ id: 1, name: "id" }, { id: 6, name: "bj" }])
+);
+// insert into "chats_users" ("user_id", "chat_id") values (1, 12), (6, 12)
+</script>```
+
+## 7.1.5 함수 고르기
+
+##### [코드 7-10]
+<script>//```javascript
+sql.insert = function(table, data) {
+  data = _.wrap_arr(data);
+  var columns = _.go(data, _.map(_.keys), _.flatten, _.uniq); // columns 뽑아내고
+  var defaults = _.object(_.map(columns, v=>[v, "DEFAULT"])); // 그 순서대로 defaults를 만들고
+
+  return 'insert into "'+table+'" ("' + columns.join('", "') + '") values '+
+    _.map(data, __(_.idtt,
+      _.map_object(v => _.is_string(v) ? "'" + v + "'" : v),
+      v => _.extend({}, defaults, v), // defaults의 순서대로 다시 재배치하고
+      _.values, v => '(' + v.join(', ') + ')'
+    )).join(', ');
+};
+</script>```
+
+## 7.1.6 많은 사람들이 기본 객체와 함수 중심으로 프로그래밍을 한다면
+
+</body>
+</html>

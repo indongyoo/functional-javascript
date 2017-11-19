@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="_.3.2.js"></script>
+  <script>
+    function bloop(new_data, body, stopper, is_reduce) {
+      return function(data, iter_predi, opt1) {
+        iter_predi = iter_predi || _.idtt;
+        var result = new_data(data);
+        var memo = is_reduce ? opt1 : undefined;
+        if (isArrayLike(data)) {
+          for (var i = 0, len = data.length; i < len; i++) {
+            memo = is_reduce ?
+              iter_predi(memo, data[i], i, data) :
+              iter_predi(data[i], i, data);
+            if (!stopper) body(memo, result, data[i], i);
+            else if (stopper(memo)) return body(memo, result, data[i], i);
+          }
+        } else {
+          for (var i = 0, keys = _.keys(data), len = keys.length; i < len; i++) {
+            memo = is_reduce ?
+              iter_predi(memo, data[keys[i]], keys[i], data) :
+              iter_predi(data[keys[i]], keys[i], data);
+            if (!stopper) body(memo, result, data[keys[i]], keys[i]);
+            else if (stopper(memo)) return body(memo, result, data[keys[i]], keys[i]);
+          }
+        }
+        return is_reduce ? memo : result;
+      }
+    }
+    _.reduce = bloop(_.noop, _.noop, undefined, true);
+  </script>
+</head>
+<body>
+
+## 3.4.1 _.reduce 소개
+
+##### [코드 3-71] _.reduce 사용 예제
+<script>//```javascript
+_.reduce([1, 2, 3], function(memo, val, idx, list) {
+  return memo + val;
+}, 0);
+// 6
+</script>```
+
+##### [코드 3-72] _.reduce 사용 예제2
+<script>//```javascript
+_.reduce([[0, 1], [2, 3], [4, 5]], function(memo, val, idx, list) {
+  return memo.concat(val);
+}, []);
+// [0, 1, 2, 3, 4, 5]
+</script>```
+
+<script>//```javascript
+[1].concat(2);
+// [1, 2];
+[1].concat([2, 3]);
+// [1, 2, 3];
+[1].concat([[2, 3]]);
+// [1, [2, 3]];
+</script>```
+
+## 3.4.2 _.reduce의 용도
+
+##### [코드 3-73] _.reduce의 실용성
+<script>//```javascript
+var users = [
+  { id: 1, name: "ID", age: 32 },
+  { id: 2, name: "HA", age: 25 },
+  { id: 3, name: "BJ", age: 32 },
+  { id: 4, name: "PJ", age: 28 },
+  { id: 5, name: "JE", age: 27 },
+  { id: 6, name: "JM", age: 32 },
+  { id: 7, name: "HI", age: 24 }
+];
+
+// (1) _.filter와 _.map을 이용해 구현
+var users2 = _.filter(users, function(user) {
+  return user.age >= 30;
+});
+_.map(users2, function(user) {
+  return user.name;
+});
+// ["ID", "BJ", "JM"] (루프: 7 + 3, new Array: 1 + 1)
+
+// (2) _.reduce만으로 구현
+_.reduce(users, function(names, user) {
+  if (user.age >= 30) names.push(user.name);
+  return names;
+}, []);
+// ["ID", "BJ", "JM"] (루프: 7, new Array: 1)
+</script>```
+
+## 3.4.3 _.reduce로 회원 데이터 집계 하기
+
+##### [코드 3-74]
+<script>//```javascript
+_.reduce(users, function(info, user) {
+  var group = user.age - user.age % 10;
+  info.count[group] = (info.count[group] || 0) + 1;
+  info.total[group] = (info.total[group] || 0) + user.age;
+  return info;
+}, { count: {}, total: {} });
+
+/*
+ {
+   count: { 20: 4, 30: 3 },
+   total: { 20: 104, 30: 96 }
+ }
+*/
+</script>```
+
+## 3.4.4 _.reduce 만들기
+
+##### [코드 3-75] _.each로 _.reduce 만들기
+<script>//```javascript
+_.reduce = function(data, iteratee, memo) {
+  _.each(data, function(val, idx, data) {
+    memo = iteratee(memo, val, idx, data);
+  });
+  return memo;
+};
+</script>```
+
+##### [코드 3-75] bloop로 _.reduce 만들기
+<script>//```javascript
+function bloop(new_data, body, stopper, is_reduce) { // reduce를 위한 함수인지 여부 추가
+  return function(data, iter_predi, opt1) { // reduce인 경우 세 번째 인자인 opt1로 memo를 받음
+    iter_predi = iter_predi || _.idtt;
+    var result = new_data(data);
+    var memo = is_reduce ? opt1 : undefined; // reduce 일때만 memo를 opt1로 할당 아닐때는 기존 유지
+    if (isArrayLike(data)) {
+      for (var i = 0, len = data.length; i < len; i++) {
+        memo = is_reduce ? // is_reduce 여부에 따라 인자 전달 개수 변경
+          iter_predi(memo, data[i], i, data) :
+          iter_predi(data[i], i, data);
+        if (!stopper) body(memo, result, data[i], i);
+        else if (stopper(memo)) return body(memo, result, data[i], i);
+      }
+    } else {
+      for (var i = 0, keys = _.keys(data), len = keys.length; i < len; i++) {
+        memo = is_reduce ? // is_reduce 여부에 따라 인자 전달 개수 변경
+          iter_predi(memo, data[keys[i]], keys[i], data) :
+          iter_predi(data[keys[i]], keys[i], data);
+        if (!stopper) body(memo, result, data[keys[i]], keys[i]);
+        else if (stopper(memo)) return body(memo, result, data[keys[i]], keys[i]);
+      }
+    }
+    return is_reduce ? memo : result; // is_reduce 여부에 따라 리턴 값 변경
+  }
+}
+
+_.reduce = bloop(_.noop, _.noop, undefined, true); // 마지막 인자 true는 is_reduce
+
+_.reduce([1, 2, 3], function(memo, val) {
+  return memo + val;
+}, 0);
+// 6
+
+_.reduce(users, function(names, user) {
+  if (user.age > 30) names.push(user.name);
+  return names;
+}, []);
+// ["ID", "BJ", "JM"]
+</script>```
+
+## 3.4.5 bloop 반으로 줄이기
+
+##### [코드 3-76] 절차지향적 리팩토링
+<script>//```javascript
+function bloop(new_data, body, stopper, is_reduce) {
+  return function(data, iter_predi, opt1) {
+    iter_predi = iter_predi || _.idtt;
+    var result = new_data(data);
+    var memo = is_reduce ? opt1 : undefined;
+    var keys = isArrayLike(data) ? null : _.keys(data); // (1)
+    for (var i = 0, len = (keys || data).length; i < len; i++) {  // (2)
+      var key = keys ? keys[i] : i;  // (3)
+      memo = is_reduce ?
+        iter_predi(memo, data[key], key, data) :
+        iter_predi(data[key], key, data);
+      if (!stopper) body(memo, result, data[key], key);
+      else if (stopper(memo)) return body(memo, result, data[key], key);
+    }
+    return is_reduce ? memo : result;
+  }
+}
+_.reduce = bloop(_.noop, _.noop, undefined, true);
+_.each = bloop(_.identity, _.noop);
+
+
+_.reduce([1, 2, 3], function(memo, val) {
+  return memo + val;
+}, 0);
+// 6
+
+_.each({ a: 1, b: 2 }, console.log);
+// 1 "a" { a: 1, b: 2 }
+// 2 "b" { a: 1, b: 2 }
+// { a: 1, b: 2 }
+
+_.each(null, console.log);
+//
+</script>```
+
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="partial.js"></script>
+</head>
+<body>
+
+## 8.1.4 필터링 기능 추가하기
+
+##### [코드 8-6]
+```html
+<style>
+  #todos {
+    width: 500px;
+    overflow: hidden;
+    margin: 100px auto 0;
+    border: 1px solid #ccc;
+  }
+  .create {
+    font-size: 20px;
+    width: 98%;
+    margin: 0;
+    padding: 1%;
+    border-width: 1px 0;
+  }
+  .list {
+    margin: 0;
+    padding: 0;
+  }
+  .list li {
+    position: relative;
+    padding: 10px 100px 10px 40px;
+    border-bottom: 1px solid #ccc;
+  }
+  .list li input {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+  }
+  .list li button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: none;
+    color: #666;
+  }
+  .list li:hover button {
+    display: block;
+  }
+  .list li button:hover {
+    color: #000;
+  }
+  .list li[completed="true"] .body {
+    text-decoration: line-through;
+    color: #aaa;
+  }
+  #todos[filter="all"] .filters .all,
+  #todos[filter="active"] .filters .active,
+  #todos[filter="completed"] .filters .completed {
+    text-decoration: underline;
+    font-weight: bold;
+    color: brown;
+  }
+  .filters {
+    list-style: none;
+    width: 250px;
+    text-align: center;
+  }
+  .filters li {
+    display: inline-block;
+    margin: 0 10px;
+    cursor: pointer;
+  }
+</style>
+
+<div id="todos" filter="all"> <!-- filter="all"의 상태에 따라 아래 .filters li 볼드 처리-->
+  <input type="text" class="create" placeholder="What needs to be done?">
+  <ul class="list">
+  </ul>
+  <!-- 필터링 HTML 추가 -->
+  <ul class="filters">
+    <li class="all">All</li>
+    <li class="active">Active</li>
+    <li class="completed">Completed</li>
+  </ul>
+</div>
+
+<script>
+function enter_n_has_val(e) {
+  return e.keyCode == 13 && e.target.value;
+}
+
+_.go({
+  list: [],
+  filter_name: "all", // 현재 보고 있는 필터 조건 - 모든 일 (all), 할 일 (active), 한 일 (completed)
+}, function(app) {
+
+  // (1) todo_item html을 생성하여 append 하는 코드를 밑에서도 사용할 수 있도록 함수로 만들기
+  var append_items = _.pipe(
+    _.wrap_arr, // 인자가 배열이 아닌 경우 인자가 담긴 배열로 리턴 ([인자])
+    // _.sum을 감싸서 반복된 HTML 생성하도록 변경
+    _.sum(_.t('todo', '\
+      li.todo_item[todo_id="{{todo.id}}" completed="{{todo.completed}}"]\
+        input.toggle[type="checkbox" {{todo.completed ? "checked": ""}}]\
+        .body {{todo.body}}\
+        button[type="button"].remove remove')),
+    $,
+    _('appendTo', '#todos .list'));
+
+  $('body')
+    .on('keyup', '.create', _.if(enter_n_has_val, _.pipe(
+      _.v('target'),
+      _.tap(
+        function(id) {
+          return function(input) {
+            return app.list[app.list.length] = {
+              id: ++id, body: input.value, completed: false
+            };
+          }
+        }(0),
+        _.if(_(filter_is_not, 'completed'), append_items)), // (2)
+        // 원래 여기 있던 템플릿 + append 코드를 이름을 지어 append_items 함수로 선언
+        // _.if를 통해 현재 화면이 한 일 목록이라면 실행이 되지 않도록 하여 todo_item을 화면에 그리지 않도록
+      _.set('value', '')
+    )));
+
+  function e_to_todo_item(e) {
+    return $(e.target).closest('.todo_item');
+  }
+
+  function todo_item_to_todo(todo_item) {
+    return _.find_where(app.list, { id: todo_item.attr('todo_id') });
+  }
+
+  $('body')
+    .on('click', '.remove', _.pipe(
+      e_to_todo_item,
+      _('remove'),
+      todo_item_to_todo,
+      _(_.remove2, app, 'list')
+    ))
+
+    .on('change', '.toggle', _.pipe(
+      function(e) {
+        return e_to_todo_item(e).attr('completed', e.target.checked);
+      },
+      _.tap(_.if(_(filter_is_not, 'all'), _('remove'))),
+      // all 화면이 아니면 check와 동시에 리스트에서 제거하기
+      todo_item_to_todo,
+      _.set('completed', _.not)
+    ));
+
+  function filter_is_not(filter_name) {
+    return app.filter_name != filter_name;
+  }
+
+  // (3)
+  function filter_changer(filter_name, filter) {
+    return _.if(_(filter_is_not, filter_name), function() { // _.if로 현재의 필터가 클릭되면 나가도록
+      app.filter_name = filter_name; // filter_name 변경
+      $('#todos').attr('filter', filter_name).find('.list').html('');
+      // filter 변경 후 .list 비우기
+      return _.go(app.list, filter, append_items); // (4)
+      // 전체 list에서 필터링 후 해당 할 일 html 만들어 append 하기
+    });
+  }
+
+  $('body')  // filter_changer 함수를 통해 탭 별로 서로 다른 동작을 if 문 대신 함수 조합으로 분기
+    .on('click', 'li.all', filter_changer('all', _.idtt)) // (5)
+                                                 // 필터링을 하지 않는 함수
+    .on('click', 'li.active', filter_changer('active', _.reject('completed'))) // (6)
+                                                      // 완료 된 것을 제외하는 함수
+    .on('click', 'li.completed', filter_changer('completed', _.filter('completed'))); // (7)
+                                                            // 완료 된 것만 남기는 함수
+  /* (8)
+   * _.filter('completed')는 아래와 동일한 함수를 생성
+   * function(list) {
+   *   return _.filter(list, function(val) {
+   *     return val.completed;
+   *   });
+   * }
+   * */
+});
+</script>
+```
+
+## 8.1.5 한 일 모두 삭제하기
+
+##### [코드 8-7]
+```html
+<button type="button" class="clear_completed">Clear completed</button>
+```
+
+<script>//```javascript
+_.go({
+  list: [],
+  filter_name: "all", // 현재 보고 있는 필터 조건 - 모든 일 (all), 할 일 (active), 한 일 (completed)
+}, function(app) {
+
+  // 코드 생략
+  $('body')
+    .on('click', '.clear_completed', function() {
+      app.list = _.reject(app.list, 'completed');
+      // completed == true 인 모든 목록을 제외한 후 app.list에 재할당
+      if (filter_is_not('active')) $('.todo_item[completed="true"]').remove();
+      // 현재 보고 있는 화면이 active가 아닐 때만(모두 보기 혹은 완료 보기 목록이라면) 한 일 항목 찾아서 제거하기
+    });
+
+});
+</script>```
+
+
+</body>
+</html>

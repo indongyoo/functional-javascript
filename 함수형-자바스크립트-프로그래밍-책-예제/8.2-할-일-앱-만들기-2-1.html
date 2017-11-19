@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="partial.js"></script>
+  <style>
+    #todos {
+      width: 500px;
+      overflow: hidden;
+      margin: 100px auto 0;
+      border: 1px solid #ccc;
+    }
+
+    .create {
+      font-size: 20px;
+      width: 98%;
+      margin: 0;
+      padding: 1%;
+      border-width: 1px 0;
+    }
+    .list {
+      margin: 0;
+      padding: 0;
+    }
+    .list li {
+      position: relative;
+      padding: 10px 100px 10px 40px;
+      border-bottom: 1px solid #ccc;
+    }
+    .list li input {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+    }
+    .list li button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: none;
+      color: #666;
+    }
+    .list li:hover button {
+      display: block;
+    }
+    .list li button:hover {
+      color: #000;
+    }
+    .list li[completed="true"] .body {
+      text-decoration: line-through;
+      color: #aaa;
+    }
+    #todos[filter="all"] .filters .all,
+    #todos[filter="active"] .filters .active,
+    #todos[filter="completed"] .filters .completed {
+      text-decoration: underline;
+      font-weight: bold;
+      color: brown;
+    }
+    .active_count, .filters, .clear_completed {
+      float: left;
+      padding: 0;
+      margin: 0;
+      height: 30px;
+      line-height: 30px;
+      text-align: center;
+      width: 125px;
+      color: #666;
+      font-size: 14px;
+    }
+    .filters {
+      list-style: none;
+      width: 250px;
+      text-align: center;
+    }
+    .filters li {
+      display: inline-block;
+      margin: 0 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+## 8.2.1 카운트 정보 표시하기
+
+##### [코드 8-8] 추가 된 CSS
+```html
+<style>
+  /* 할 일이 하나도 없으면 안쪽 view를 보여주지 않도록 */
+  #todos[count="0"] .list,
+  #todos[count="0"] .active_count,
+  #todos[count="0"] .filters,
+  #todos[count="0"] .clear_completed {
+    display: none;
+  }
+  .clear_completed {
+    border: 0 none;
+    background: none;
+  }
+  .clear_completed:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<div id="todos" filter="all" count="0">
+  <input type="text" class="create" placeholder="What needs to be done?">
+  <ul class="list">
+  </ul>
+  <div class="active_count">0 items left</div>
+  <ul class="filters">
+    <li class="all">All</li>
+    <li class="active">Active</li>
+    <li class="completed">Completed</li>
+  </ul>
+  <button type="button" class="clear_completed">Clear completed</button>
+</div>
+
+<script>
+function enter_n_has_val(e) {
+  return e.keyCode == 13 && e.target.value;
+}
+
+_.go({
+  list: [],
+  filter_name: "all",
+}, function(app) {
+
+  var append_items = _.pipe(
+    _.wrap_arr,
+    _.sum(_.t('todo', '\
+      li.todo_item[todo_id="{{todo.id}}" completed="{{todo.completed}}"]\
+        input.toggle[type="checkbox" {{todo.completed ? "checked": ""}}]\
+        .body {{todo.body}}\
+        button[type="button"].remove remove')),
+    $,
+    _('appendTo', '#todos .list'));
+
+  $('body')
+    .on('keyup', '.create', _.if(enter_n_has_val, _.pipe(
+      _.v('target'),
+      _.tap(
+        function(id) {
+          return function(input) {
+            return app.list[app.list.length] = {
+              id: ++id, body: input.value, completed: false
+            };
+          }
+        }(0),
+        _.if(_(filter_is_not, 'completed'), append_items)),
+      _.set('value', ''),
+      draw_count // (2)
+    )));
+
+  function e_to_todo_item(e) {
+    return $(e.target).closest('.todo_item');
+  }
+
+  function todo_item_to_todo(todo_item) {
+    return _.find_where(app.list, { id: todo_item.attr('todo_id') });
+  }
+
+  var reject_completed = _.reject('completed');
+  // draw_count에서도 동일 함수가 필요하기에 함수로 만들기
+  // 아래 (1)들도 이 함수로 대체.
+
+  var count_text = _.s$('{{$}} item{{$ == 1 ? "" : "s"}} left');
+  // 1 일때는 1 item left가 되고 아닐 때는 2 items left가 되도록
+
+  function draw_count() { // 이 함수를 카운트가 변경될 파이프라인들에 추가 (2)
+    $('#todos').attr('count', app.list.length)
+      .find('.active_count').text(count_text(reject_completed(app.list).length));
+    // 함수 중첩
+  }
+
+  $('body')
+    .on('click', '.remove', _.pipe(
+      e_to_todo_item,
+      _('remove'),
+      todo_item_to_todo,
+      _(_.remove2, app, 'list'),
+      draw_count // (2)
+    ))
+
+    .on('change', '.toggle', _.pipe(
+      function(e) {
+        return e_to_todo_item(e).attr('completed', e.target.checked);
+      },
+      _.tap(_.if(_(filter_is_not, 'all'), _('remove'))),
+      todo_item_to_todo,
+      _.set('completed', _.not),
+      draw_count // (2)
+    ));
+
+  function filter_is_not(filter_name) {
+    return app.filter_name != filter_name;
+  }
+
+  function filter_changer(filter_name, filter) {
+    return _.if(_(filter_is_not, filter_name), function() {
+      app.filter_name = filter_name;
+      $('#todos').attr('filter', filter_name).find('.list').html('');
+      return _.go(app.list, filter, append_items);
+    });
+  }
+
+  $('body')
+    .on('click', 'li.all', filter_changer('all', _.idtt))
+
+    .on('click', 'li.active', filter_changer('active', reject_completed)) // (1)
+
+    .on('click', 'li.completed', filter_changer('completed', _.filter('completed')))
+
+    .on('click', '.clear_completed', function() {
+      app.list = reject_completed(app.list); // (1)
+      if (filter_is_not('active')) $('.todo_item[completed="true"]').remove();
+      draw_count(); // (2)
+    });
+
+});
+</script>
+```
+
+</body>
+</html>

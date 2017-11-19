@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="partial.js"></script>
+</head>
+<body>
+
+## 5.5.1 함수 스타일의 템플릿 함수
+
+## 5.5.2 Jade(Pug) 스타일 문법 지원
+
+##### [코드 5-39] Jade 스타일의 문법
+```html
+<script>
+_.pipe(
+  _.template$('\
+    .product_list\
+      ul\
+        li 티셔츠\
+        li 핸드폰 케이스\
+        li 쿠션\
+        li 담요'),
+  function(html) {
+    $('body').append(html);
+  })();
+</script>
+
+<!-- 결과 -->
+
+<div class="product_list">
+  <ul>
+    <li>티셔츠</li>
+    <li>핸드폰 케이스</li>
+    <li>쿠션</li>
+    <li>담요</li>
+  </ul>
+</div>
+```
+
+##### [코드 5-40] Jade 스타일의 문법 추가 예제
+```html
+<script>
+_.pipe(
+  _.template$('\
+    div[style="border: 1px solid #000; padding: 20px;"]\
+      #id1.class1.class2[class="class3 class4"] hi <em>ho</em>\
+      .service\
+        a[href="http://www.marpple.com" target="_blank"] http://www.marpple.com\
+      br'),
+  function(html) {
+    $('body').append(html);
+  })();
+</script>
+
+<!-- 결과 -->
+
+<div style="border: 1px solid #000; padding: 20px;">
+  <div id="id1" class="class1 class2 class3 class4">hi <em>ho</em></div>
+  <div class="service"><a href="http://www.marpple.com" target="_blank">http://www.marpple.com</a></div>
+  <br>
+</div>
+```
+
+## 5.5.3 데이터 치환
+
+##### [코드 5-41] 데이터 치환 Jade 스타일
+```html
+<script>
+_.go(
+  { name: "Cojamm", age: 32 },
+  _.template$('\
+    .user\
+      .name {{$.name}}\
+      .age {{$.age}}'),
+  function(html) {
+    $('body').append(html);
+  });
+</script>
+
+<!-- 결과 -->
+
+<div class="user">
+  <div class="name">Cojamm</div>
+  <div class="age">32</div>
+</div>
+```
+
+##### [코드 5-42] 데이터 치환 일반 HTML
+```html
+<script>
+_.go(
+  { name: "Hanah", age: 25 },
+  _.template$('\
+    <div class="user">\
+      <div class="name">{{$.name}}</div>\
+      <div class="age">{{$.age}}</div>\
+    </div>'),
+  function(html) {
+    $('body').append(html);
+  });
+</script>
+
+<!-- 결과 -->
+
+<div class="user">
+  <div class="name">Hanah</div>
+  <div class="age">25</div>
+</div>
+```
+
+## 5.5.4 일반 HTML 전용 _.string
+
+##### [코드 5-43] 데이터 치환 일반 HTML
+```html
+<script>
+_.go(
+  { name: "Dool", age: 25 },
+  _.string$('\
+    <div class="user">\
+      <div class="name">{{$.name}}</div>\
+      <div class="age">{{$.age}}</div>\
+    </div>'),
+  function(html) {
+    $('body').append(html);
+  });
+</script>
+
+<!-- 결과 -->
+
+<div class="user">
+  <div class="name">Dool</div>
+  <div class="age">25</div>
+</div>
+```
+
+##### [코드 5-44] SQL
+```html
+<script>
+  var t1 = _.string$("update posts set body = '{{$.body}}' where id = {{$.id}};");
+  t1({ id: 10, body: "YOLO" });
+  // 결과: update posts set body = 'YOLO' where id = 10;
+</script>
+```
+
+## 5.5.5 인자 여러 개 받기
+
+##### [코드 5-45] _.string
+```html
+<script>
+var t2 = _.string('id, body', // <--- 인자 처럼 순서대로 사용할 변수명 지정
+  "update posts set body = '{{body}}' where id = {{id}};");
+
+var id = 10;
+var body = "YOLO";
+t2(id, body); // <--- 순서대로 여러 개의 값을 넘김
+// 결과: update posts set body = 'YOLO' where id = 10;
+</script>
+```
+
+##### [코드 5-46] _.template
+```html
+<script>
+var t3 = _.template('user, team', '\
+  .user\
+    .name {{user.name}}\
+    .age {{user.age}}\
+    .team {{team}}');
+
+var user = { name: "Cojamm", age: 32 };
+var team = "개발팀";
+var html = t3(user, team);
+$('body').append(html);
+</script>
+
+<!-- 결과 -->
+<div class="user">
+  <div class="name">Cojamm</div>
+  <div class="age">32</div>
+  <div class="team">개발팀</div>
+</div>
+```
+
+## 5.5.6 escape
+
+##### [코드 5-47] escape
+```html
+<script>
+var t4 = _.template('html', '\
+  div\
+    {{html}} {{{html}}}');
+
+$('body').append(t4('<h3>하이</h3>'));
+</script>
+
+<!-- 결과 -->
+<div>
+  <h3>하이</h3> &lt;h3&gt;하이&lt;/h3&gt;
+</div>
+```
+
+## 5.5.7 코드 실행
+
+##### [코드 5-48] 코드 실행
+```html
+<script>
+var t5 = _.template('a, b, bool', '\
+  div\
+    {{ a + b }} {{ bool ? "참" : "거짓" }}');
+
+$('body').append(t5(10, 5, true));
+</script>
+
+<!-- 결과 -->
+
+<div>15 참</div>
+```
+
+##### [코드 5-49] 함수 실행
+```html
+<script>
+function add(a, b) {
+  return a + b;
+}
+
+var t6 = _.template('a, b, sub, d', '\
+  div\
+    {{ add(a, b) }}, {{ sub(add(a, b), 7) }}, {{ d.getFullYear() }}');
+
+$('body').append(
+  t6(10, 5, function(a, b) { return a - b }, new Date()));
+</script>
+
+<!-- 결과 -->
+
+<div>15, 8, 2017</div>
+```
+
+##### [코드 5-50] 문자열과 함수 함께 넘겨 템플릿 함수 만들기
+```html
+<script>
+var t7 = _.template('list', '\
+  ul\
+    li {{add(list[0], list[1])}}\
+    li\
+      {{_.map(list, ', function(v) {
+        var r = v * 10;
+        return r;
+      }, ').join(", ")}}\
+    li\
+      {{_.reduce(list, ', function(memo, v) {
+        return memo + v;
+      },')}}');
+
+$('body').append(
+  t7([1, 2, 3, 4, 5]));
+</script>
+
+<!-- 결과 -->
+<ul>
+  <li>3</li>
+  <li>10, 20, 30, 40, 50</li>
+  <li>15</li>
+</ul>
+```
+
+##### [코드 5-51]
+```html
+<script>
+_.string('s', 'AB{{', function(s) { return s.toUpperCase(); }, '(s)}}DE')('c');
+//1.    인자명, 문자열,                    함수,                      문자열
+//2.                                                                     (함수 실행);
+//3.             {{                   함수 참조              (인자전달)}}
+
+// 결과 ABCDE
+</script>
+```
+
+## 5.5.8 _.sum
+
+##### [코드 5-52] _.sum과 함께 사용
+```html
+<script>
+var users = [
+  { name: "Cojamm", age: 32 },
+  { name: "JIP", age: 31 },
+  { name: "Stephen Curry", age: 29 }
+];
+
+_.go(users,
+  _.template('users', '\
+    ul.users\
+      {{_.sum(users, ', _.t('user', '\
+        li.user\
+          .name {{user.name}}\
+          .age {{user.age}}'), ')}}'),
+  function(html) {
+    $('body').append(html)
+  });
+</script>
+
+<!-- 결과 -->
+<ul class="users">
+  <li class="user">
+    <div class="name">Cojamm</div>
+    <div class="age">32</div>
+  </li>
+  <li class="user">
+    <div class="name">JIP</div>
+    <div class="age">31</div>
+  </li>
+  <li class="user">
+    <div class="name">Stephen Curry</div>
+    <div class="age">29</div>
+  </li>
+</ul>
+```
+
+## 5.5.9 비동기 제어
+
+##### [코드 5-53] 비동기 제어
+```html
+<script>
+function get_users() {
+  return new Promise(function(resolve) {
+    setTimeout(function() {
+      resolve([
+        { name: "Cojamm", age: 32 },
+        { name: "JIP", age: 31 },
+        { name: "Stephen Curry", age: 29 }
+      ]);
+    }, 2000);
+  });
+};
+
+_.go(null,
+  _.template$('\
+    ul.users\
+      {{_.go(get_users(), ', _.sum(_.t('user', '\
+        li.user\
+          .name {{user.name}}\
+          .age {{user.age}}')), ')}}'),
+  function(html) {
+    $('body').append(html)
+  });
+</script>
+
+<!-- 약 2초 쯤 뒤 -->
+<ul class="users">
+  <li class="user">
+    <div class="name">Cojamm</div>
+    <div class="age">32</div>
+  </li>
+  <li class="user">
+    <div class="name">JIP</div>
+    <div class="age">31</div>
+  </li>
+  <li class="user">
+    <div class="name">Stephen Curry</div>
+    <div class="age">29</div>
+  </li>
+</ul>
+```
+
+</body>
+</html>

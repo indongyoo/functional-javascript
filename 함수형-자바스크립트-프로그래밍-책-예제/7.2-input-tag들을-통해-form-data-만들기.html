@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="partial.js"></script>
+</head>
+<body>
+
+## 7.2.1 _.reduce로 만들기
+
+##### [코드 7-11]
+```html
+<form>
+  <input type="email" name="email" value="marpple@gmail.com">
+  <input type="text" name="nickname" value="Cojamm">
+  <input type="text" name="title" value="하이!">
+  <input type="number" name="age" value="20">
+  <textarea name="body">안녕하세요!</textarea>
+  <input type="radio" name="type" value="1">
+  <input type="radio" name="type" value="2" checked>
+  <select name="categories" multiple>
+    <option value="1" selected>1</option>
+    <option value="2">2</option>
+    <option value="3" selected>3</option>
+  </select>
+  <input type="checkbox" name="bool">
+</form>
+
+<script>
+function inputs_to_obj(inputs) {
+  return _.reduce(inputs, function(obj, input) {
+    if (input.type == "radio" && !input.checked) return obj;
+    if (input.type == "checkbox") {
+      obj[input.name] = input.checked;
+    } else {
+      obj[input.name] = $(input).val();
+    }
+    return obj;
+  }, {});
+}
+
+function form_to_obj($parent) {
+  return inputs_to_obj($('[name]', $parent));
+}
+
+console.log(
+  JSON.stringify(inputs_to_obj($('select, textarea'))));
+// {"body":"안녕하세요!","categories":["1","3"]}
+
+console.log(
+  JSON.stringify(form_to_obj($('form'))));
+// {"email":"marpple@gmail.com","nickname":"Cojamm","title":"하이!","age":20
+//  "body":"안녕하세요!","type":"2","categories":["1","3"],"bool":false}
+</script>
+```
+
+## 7.2.2 여러 가지 함수들로 함수 조합 연습해보기
+
+##### [코드 7-12]
+```html
+<script>
+var inputs_to_obj = _.pipe(
+  _.reject(function(input) { return input.type == "radio" && !input.checked; }),
+  _.all(_.pluck("name"),
+    _.map(function(input) {
+      return input.type == "checkbox" ? input.checked : $(input).val();
+    })),
+  _.object);
+
+console.log(
+  JSON.stringify(form_to_obj($('form'))));
+// {"email":"marpple@gmail.com","nickname":"Cojamm","title":"하이!","age":"20",
+//   "body":"안녕하세요!","type":"2","categories":["1","3"],"bool":false}
+
+var inputs_to_obj = _.pipe(
+  _.reject(function(input) { return input.type == "radio" && !input.checked; }),
+  _.partition(function(input) { return input.type == "checkbox" }), _.to_mr,
+  _.spread(
+    __(_.map(function(input) { return [input.name, input.checked]; }), _.object),
+    __(_.map(function(input) { return [input.name, $(input).val()]; }), _.object)),
+  _.extend);
+
+console.log(
+  JSON.stringify(form_to_obj($('form'))));
+// {"bool":false,"email":"marpple@gmail.com","nickname":"Cojamm",
+//  "title":"하이!","age":"20","body":"안녕하세요!","type":"2","categories":["1","3"]}
+</script>
+```
+
+##### [코드 7-13]
+```html
+<script>
+function is_numeric(n) {
+  return !isNaN(parseFloat(n)) && isFinite(n);
+}
+
+function numeric_to_int(n) {
+  return is_numeric(n) ? parseFloat(n) : n;
+}
+
+_.if_arr_map = function(val, iter) {
+  return _.is_array(val) ? _.map(val, iter) : iter(val);
+};
+
+$.val = function(input) {
+  if (input.type == "checkbox") return input.checked;
+  return input.nodeName == 'SELECT' || _.contains(['radio', 'number'], input.type) ?
+    _.if_arr_map($(input).val(), numeric_to_int) : $(input).val()
+};
+
+var inputs_to_obj = _.pipe(
+  _.reject(function(input) { return input.type == "radio" && !input.checked; }),
+  _.all(_.pluck("name"), _.map($.val)),
+  _.object);
+
+console.log(
+  JSON.stringify(form_to_obj($('form'))));
+// {"email":"marpple@gmail.com","nickname":"Cojamm","title":"하이!",
+//  "age":20,"body":"안녕하세요!","type":2,"categories":[1,3],"bool":false}
+
+var inputs_to_obj = _.pipe(
+  _.reject(function(input) { return input.type == "radio" && !input.checked; }),
+  _.map(_.all(_.v('name'), $.val)),
+  _.object);
+
+console.log(
+  JSON.stringify(form_to_obj($('form'))));
+// {"email":"marpple@gmail.com","nickname":"Cojamm","title":"하이!",
+//  "age":20,"body":"안녕하세요!","type":2,"categories":[1,3],"bool":false}
+
+function inputs_to_obj(inputs) {
+  return _.reduce(inputs, function(obj, input) {
+    if (input.type == "radio" && !input.checked) return obj;
+    obj[input.name] = $.val(input);
+    return obj;
+  }, {});
+}
+
+console.log(
+  JSON.stringify(form_to_obj($('form'))));
+// {"email":"marpple@gmail.com","nickname":"Cojamm","title":"하이!",
+//  "age":20,"body":"안녕하세요!","type":2,"categories":[1,3],"bool":false}
+
+var inputs_to_obj = _.reduce(function(obj, input) {
+  return input.type == "radio" && !input.checked ? obj : obj[input.name] = $.val(input), obj;
+}, _.object);
+
+console.log(
+  JSON.stringify(form_to_obj($('form'))));
+// {"email":"marpple@gmail.com","nickname":"Cojamm","title":"하이!",
+//  "age":20,"body":"안녕하세요!","type":2,"categories":[1,3],"bool":false}
+</script>
+```
+
+</body>
+</html>

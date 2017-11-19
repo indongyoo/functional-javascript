@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="_.3.2.js"></script>
+</head>
+<body>
+
+## 3.3.1 _.filter 만들기
+
+##### [코드 3-49] 1장에서 만든 _.old_filter
+<script>//```javascript
+_.old_filter = function(data, predicate) {
+  var result = [];
+  for (var idx = 0, len = data.length; idx < len; idx++) {
+    if (predicate(data[idx], idx, data)) result.push(data[idx]);
+  }
+  return result;
+};
+</script>```
+
+##### [코드 3-50] _.each로 _.filter 만들기
+<script>//```javascript
+_.filter = function(data, predicate) {
+  var result = [];
+  _.each(data, function(val, idx, data) {
+    if (predicate(val, idx, data)) result.push(val);
+  });
+  return result;
+};
+
+_.filter([1, 2, 3, 4], function(val) {
+  return val > 2;
+});
+// [3, 4]
+</script>```
+
+##### [코드 3-51] 차이 확인
+<script>//```javascript
+var obj = {
+  a: 1,
+  b: 2,
+  c: 3,
+  d: 4
+};
+
+_.old_filter(obj, function(val) {
+  return val > 2;
+});
+// []
+
+_.filter(obj, function(val) {
+  return val > 2;
+});
+// [3, 4]
+</script>```
+
+## 3.3.2 bloop로 _.filter 만들기
+
+##### [코드 3-52] bloop 다시보기
+<script>//```javascript
+function bloop(new_data, body) {
+  return function(data, iteratee) {
+    var result = new_data(data);
+    if (isArrayLike(data)) {
+      for (var i = 0, len = data.length; i < len; i++) {
+        body(iteratee(data[i], i, data), result);
+      }
+    } else {
+      for (var i = 0, keys = _.keys(data), len = keys.length; i < len; i++) {
+        body(iteratee(data[keys[i]], keys[i], data), result);
+      }
+    }
+    return result;
+  }
+}
+
+_.map = bloop(_.array, _.push_to);
+_.each = bloop(_.identity, _.noop);
+</script>```
+
+##### [코드 3-53] bloop를 고쳐서 _.filter 만들기
+<script>//```javascript
+function bloop(new_data, body) {
+  return function(data, iter_predi) { // 보조 함수 이름을 iter_predi로 변경
+    var result = new_data(data);
+    if (isArrayLike(data)) {
+      for (var i = 0, len = data.length; i < len; i++) {
+        body(iter_predi(data[i], i, data), result, data[i]);
+                              // 인자에 원본 추가 ---> data[i]
+      }
+    } else {
+      for (var i = 0, keys = _.keys(data), len = keys.length; i < len; i++) {
+        body(iter_predi(data[keys[i]], keys[i], data), result, data[keys[i]]);
+                                          // 인자에 원본 추가 ---> data[keys[i]]
+      }
+    }
+    return result;
+  }
+}
+
+_.array = function() { return []; };
+
+_.filter = bloop(_.array,
+  function(bool, result, val) {
+    if (bool) result.push(val);
+  });
+
+var obj = {
+  a: 1,
+  b: 2,
+  c: 3,
+  d: 4
+};
+
+_.filter(obj, function(val) {
+  return val > 2;
+});
+// [3, 4]
+
+_.filter([1, 2, 3, 4], function(val) {
+  return val < 3;
+});
+// [1, 2]
+</script>```
+
+## _.rest, _.toArray, _.reverse, _.if
+
+##### [코드 3-54]
+<script>//```javascript
+(function(bool, result, val) {
+  if (bool) result.push(val);
+});
+</script>```
+
+##### [코드 3-55] _.toArray, _.rest, _.reverse
+<script>//```javascript
+_.toArray = function(list) {
+  return Array.isArray(list) ? list : _.values(list);
+};
+_.rest = function(list, num) {
+  return _.toArray(list).slice(num || 1);
+};
+
+_.rest([1, 2, 3]);
+// [2, 3];
+_.rest({0: 1, 1: 10, 2: 100, 3: 1000, length: 4}, 2);
+// [100, 1000];
+
+/*
+[참고]
+_.toArray나 _.rest를 구현하는 가장 좋은 아이디어는 [코드 2-60]에서도 확인했었다.
+위 코드는 이 장의 목적(함수적 아이디어 생각해보기)을 위해 위와 같이 만들었다.
+*/
+
+_.reverse = function(list) {
+  return _.toArray(list).reverse();
+};
+
+_.reverse([1, 2, 3]);
+// [3, 2, 1];
+_.reverse({});
+// []
+_.reverse(null);
+// []
+_.rest(_.reverse({0: 1, 1: 10, 2: 100, 3: 1000, length: 4}));
+// [100, 10, 1]
+</script>```
+
+##### [코드 3-56] _.rester
+<script>//```javascript
+_.rester = function(func, num) {
+  return function() {
+    return func.apply(null, _.rest(arguments, num));
+  }
+};
+
+function sum(a, b, c, d) {
+  return (a || 0) + (b || 0) + (c || 0) + (d || 0);
+}
+
+_.rester(sum)(1, 2, 3, 4);
+// 9
+_.rester(sum, 2)(1, 2, 3, 4);
+// 7
+_.rester(sum, 3)(1, 2, 3, 4);
+// 4
+</script>```
+
+##### [코드 3-57] _.if
+<script>//```javascript
+_.if = function(validator, func, alter) {
+  return function() {
+    return validator.apply(null, arguments) ?
+      func.apply(null, arguments) :
+      alter && alter.apply(null, arguments);
+  }
+};
+
+function sub(a, b) {
+  return a - b;
+}
+
+var sub2 = _.if(
+  function(a, b) { return a >= b; },
+  sub,
+  function() { return new Error("a가 b보다 작습니다."); });
+
+sub2(10, 5);
+// 5;
+
+sub2(2, 5);
+// Error: a가 b보다 작습니다.
+
+var diff = _.if(
+  function(a, b) { return a >= b; },
+  sub,
+  function(a, b) { return sub(b, a) });
+
+diff(2, 5);
+// 3
+
+_.safety = _.with_validator = _.if;
+</script>```
+
+##### [코드 3-58] _.if를 이용하여 함수 만들기
+<script>//```javascript
+_.toArray = function(list) {
+  return Array.isArray(list) ? list : _.values(list);
+};
+_.toArray2 = _.if(Array.isArray, _.idtt, _.values);
+// _.idtt = function(v) { return v; };
+
+_.toArray2([1, 2, 3]); // _.idtt
+// [1, 2, 3]
+_.toArray2({0: 1, 1: 10, 2: 100, 3: 1000, length: 4}); // _.values
+// [1, 10, 100, 1000]
+
+_.constant = function(v) {
+  return function() {
+    return v;
+  }
+};
+
+var square = _.safety(
+  function(a) { return toString.call(a) == '[object Number]'; },
+  function(a) { return a * a; },
+  function() { return 0; }); // or _.constant(0);
+
+square(5);
+// 25
+square("가나다");
+// 0
+
+_.isNumber = function(a) { return toString.call(a) == '[object Number]'; };
+var square = _.safety(_.isNumber, a => a * a, () => 0);
+
+square(5);
+// 25
+square("가나다");
+// 0
+</script>```
+
+## 3.3.4 익명 함수 없이 bloop로 _.filter 만들기
+
+##### [코드 3-59]
+<script>//```javascript
+_.push = function(obj, val) {
+  obj.push(val);
+  return obj;
+};
+_.filter = bloop(_.array, _.if(_.idtt, _.rester(_.push)));
+
+_.filter([1, 2, 3, 4], function(val) {
+  return val > 2;
+});
+// [3, 4]
+
+_.filter([1, 2, 3, 4], function(val) {
+  return val < 3;
+});
+// [1, 2]
+</script>```
+
+##### [코드 3-60]
+<script>//```javascript
+// 1
+(function(bool, result, val) {
+  if (bool) result.push(val);
+})
+
+// 2
+_.if(_.idtt, _.rester(_.push));
+</script>```
+
+##### [코드 3-61]
+<script>//```javascript
+// 1
+_.filter = function(data, predicate) {
+  var result = [];
+  if (isArrayLike(data)) {
+    for (var i = 0, len = data.length; i < len; i++) {
+      if (predicate(data[i], i, data)) result.push(data[i]);
+    }
+  } else {
+    for (var i = 0, keys = _.keys(data), len = keys.length; i < len; i++) {
+      if (predicate(data[keys[i]], keys[i], data)) result.push(keys[i]);
+    }
+  }
+  return result;
+};
+
+// 2
+_.filter = function(data, predicate) {
+  var result = [];
+  _.each(data, function(val, idx, data) {
+    if (predicate(val, idx, data)) result.push(val);
+  });
+  return result;
+};
+
+// 3
+_.filter = bloop(_.array, function(bool, result, val) {
+  if (bool) result.push(val);
+});
+
+// 4
+_.filter = bloop(_.array, _.if(_.idtt, _.rester(_.push)));
+</script>```
+
+### 익명 함수, 람다, 화살표 함수
+
+##### [코드 3-62]
+<script>//```javascript
+// _.filter = bloop(_.array, _.if(_.idtt, _.rester(_.push)));
+
+_.filter = bloop(function() { return []; },
+  function(bool, result, val) {
+    return (function(bool, result, val) {
+      return (function(v) {
+        return v;
+      })(bool, result, val) ?
+        (function() {
+          return (function(result, val) {
+            return (function(val, obj) {
+              return obj.push(val);
+            })(val, result);
+          })(result, val);
+        })(bool, result, val) : undefined;
+    })(bool, result, val)
+  });
+
+_.filter([1, 2, 3, 4], function(val) {
+  return val > 2;
+});
+// [3, 4]
+
+_.filter([1, 2, 3, 4], function(val) {
+  return val < 3;
+});
+// [1, 2]
+
+// 화살표 함수 버전
+_.filter = bloop(() => [],
+  (bool, result, val) =>
+    ((bool, result, val) =>
+      ((v) => v)(bool, result, val) ?
+        (() => ((result, val) =>
+          ((val, obj) => obj.push(val))(val, result))(result, val))(bool, result, val) :
+        undefined
+    )(bool, result, val));
+</script>```
+
+## 3.3.5 _.reject 만들기
+
+##### [코드 3-63] _.reject
+<script>//```javascript
+ _.filter = bloop(_.array, _.if(_.idtt, _.rester(_.push)));
+
+// 1번
+_.reject = bloop(_.array, _.if(_.idtt, _.noop, _.rester(_.push)));
+// _.noop = function() {};
+
+_.reject([1, 2, 3, 4], function(val) {
+  return val > 2;
+});
+// [1, 2]
+
+_.negate = function(func) {
+  return function() {
+    return !func.apply(null, arguments);
+  }
+};
+
+// 2번
+_.reject = bloop(_.array, _.if(_.negate(_.idtt), _.rester(_.push)));
+
+_.reject([1, 2, 3, 4], function(val) {
+  return val > 2;
+});
+// [1, 2]
+
+
+// 3번
+_.not = function(v) { return !v };
+_.reject = bloop(_.array, _.if(_.not, _.rester(_.push)));
+
+_.reject([1, 2, 3, 4], function(val) {
+  return val < 3;
+});
+// [3, 4]
+</script>```
+
+##### [코드 3-64] _.filter와 _.reject 함수 정의 비교
+<script>//```javascript
+_.filter = bloop(_.array, _.if(_.idtt, _.rester(_.push)));
+_.reject = bloop(_.array, _.if(_.not, _.rester(_.push)));
+</script>```
+
+## 3.3.6 _.find, _.some, _.every를 만들기 위해 bloop 고치기
+
+##### [코드 3-65] bloop에 stopper 추가
+<script>//```javascript
+function bloop(new_data, body, stopper) {
+  return function(data, iter_predi) {
+    var result = new_data(data);
+    var memo;
+    if (isArrayLike(data)) {
+      for (var i = 0, len = data.length; i < len; i++) {
+        memo = iter_predi(data[i], i, data); // 결과를 재료로 사용하기 위해 변수에 담기
+        if (!stopper) body(memo, result, data[i], i); // stopper 없으면 원래 로직대로
+        else if (stopper(memo)) return body(memo, result, data[i], i);
+      }
+    } else {
+      for (var i = 0, keys = _.keys(data), len = keys.length; i < len; i++) {
+        memo = iter_predi(data[keys[i]], keys[i], data);
+        if (!stopper) body(memo, result, data[keys[i]], keys[i]);
+        else if (stopper(memo)) return body(memo, result, data[keys[i]], keys[i]);
+      }
+    }
+    return result;
+  }
+}
+
+_.each = bloop(_.identity, _.noop);
+_.map = bloop(_.array, _.push_to);
+_.filter = bloop(_.array, _.if(_.idtt, _.rester(_.push)));
+_.reject = bloop(_.array, _.if(_.not, _.rester(_.push)));
+
+_.each([1, 2, 3], function(v) { console.log(v); });
+// 1
+// 2
+// 3
+// [1, 2, 3]
+
+_.map([1, 2, 3], function(v) { return v * v; });
+// [1, 4, 9]
+
+_.filter([1, 2, 3, 4], function(val) { return val > 2; });
+// [3, 4]
+
+_.reject([1, 2, 3, 4], function(val) { return val > 2; });
+// [1, 2]
+</script>```
+
+## 3.3.7 _.find 만들기
+
+##### [코드 3-66] _.find
+<script>//```javascript
+_.noop = function() {};
+_.idtt = function(v) { return v; };
+
+_.find = bloop(
+  _.noop, // new_data - 하나도 못 찾은 경우 undefined를 리턴하기 위해
+  function(bool, result, val) { return val; }, // body - stopper 조건에 부합한 경우 리턴할 값
+  _.idtt); // stopper - 참일 때 나가기 위해 memo의 값을 그대로 리턴
+
+_.find([1, 10, 100, 1000], function(v) { return v > 50; });
+// 100
+
+var users = [
+  { id: 2, name: "HA", age: 25 },
+  { id: 4, name: "PJ", age: 28 },
+  { id: 5, name: "JE", age: 27 }
+];
+_.find(users, function(user) { return user.age == 27; });
+// { id: 5, name: "JE", age: 27 }
+</script>```
+
+##### [코드 3-67]
+<script>//```javascript
+_.find = bloop(_.noop, function(bool, result, val) { return val; }, _.idtt);
+_.find = bloop(_.noop, _.rester(_.idtt, 2), _.idtt);
+// _.rester(_.idtt, 2) 는 앞에 두개의 인자를 제외한 인자를 그대로 리턴
+</script>```
+
+## 3.3.8 _.findIndex, _.findKey 만들기
+
+##### [코드 3-68] _.findIndex, _.findKey
+<script>//```javascript
+_.find = bloop(_.noop, _.rester(_.idtt, 2), _.idtt);
+_.findIndex = bloop(_.constant(-1), _.rester(_.idtt, 3), _.idtt); // (1)
+_.findKey = bloop(_.noop, _.rester(_.idtt, 3), _.idtt); // (2)
+
+_.findIndex([1, 10, 100, 1000], function(v) { return v > 50; });
+// 2
+_.findIndex([1, 10, 100, 1000], function(v) { return v > 1000; });
+// -1
+
+_.findKey({ id: 4, name: "PJ", age: 28 }, function(val) { return typeof val == "string"; });
+// name
+_.findKey({ id: 4, name: "PJ", age: 28 }, Array.isArray);
+// undefined
+</script>```
+
+## 3.3.9 _.some, _.every 만들기
+
+##### [코드 3-69] _.some, _.every
+<script>//```javascript
+_.some = bloop(_.constant(false), _.constant(true), _.idtt);
+_.every = bloop(_.constant(true), _.constant(false), _.not);
+
+_.some([false, null, 10, undefined], Number.isInteger);
+// true (루프 count 3)
+
+_.every([false, null, true, undefined], _.not);
+// false (루프 count 3)
+
+_.every([function() {}, {}, [], {}], _.isObject);
+// true (루프 count 4)
+</script>```
+
+##### [코드 3-70] bloop 수정
+<script>//```javascript
+function bloop(new_data, body, stopper) {
+  return function(data, iter_predi) {
+    iter_predi = iter_predi || _.idtt; // 넘어오지 않으면 _.idtt로 대체
+    var result = new_data(data);
+    var memo;
+    if (isArrayLike(data)) {
+      for (var i = 0, len = data.length; i < len; i++) {
+        memo = iter_predi(data[i], i, data);
+        if (!stopper) body(memo, result, data[i], i);
+        else if (stopper(memo)) return body(memo, result, data[i], i);
+      }
+    } else {
+      for (var i = 0, keys = _.keys(data), len = keys.length; i < len; i++) {
+        memo = iter_predi(data[keys[i]], keys[i], data);
+        if (!stopper) body(memo, result, data[keys[i]], keys[i]);
+        else if (stopper(memo)) return body(memo, result, data[keys[i]], keys[i]);
+      }
+    }
+    return result;
+  }
+}
+
+_.some = bloop(_.constant(false), _.constant(true), _.idtt);
+_.every = bloop(_.constant(true), _.constant(false), _.not);
+
+_.some([false, null, 10, undefined]);
+// true (루프 count 3)
+_.every([false, null, true, undefined]);
+// false (루프 count 1)
+_.every([function() {}, {}, [], {}]);
+// true (루프 count 4)
+</script>```
+
+## 3.3.10 함수형 프로그래밍에서 함수는 로직이다!
+
+
+</body>
+</html>

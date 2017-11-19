@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="_.3.2.js"></script>
+  <script>
+    _.reduce = bloop(_.noop, _.noop, undefined, true);
+  </script>
+</head>
+<body>
+
+## 3.5.1 _.filter 중간에 나가기
+
+##### [코드 3-78] limiter 추가
+<script>//```javascript
+function bloop(new_data, body, stopper, is_reduce) {
+  return function(data, iter_predi, opt1) {
+    iter_predi = iter_predi || _.idtt;
+    var result = new_data(data);
+    var memo = is_reduce ? opt1 : undefined;
+    var limiter = is_reduce ? undefined : opt1; // (1) reduce가 아닐 때만 opt1 사용
+    var keys = isArrayLike(data) ? null : _.keys(data);
+    for (var i = 0, len = (keys || data).length; i < len; i++) {
+      var key = keys ? keys[i] : i;
+      memo = is_reduce ?
+        iter_predi(memo, data[key], key, data) :
+        iter_predi(data[key], key, data);
+      if (!stopper) body(memo, result, data[key], key);
+      else if (stopper(memo)) return body(memo, result, data[key], key);
+      if (limiter && limiter == result.length) break;
+      // (2) limiter가 있고 result.length와 같다면 break
+    }
+    return is_reduce ? memo : result;
+  }
+}
+_.filter = bloop(_.array, _.if(_.idtt, _.rester(_.push)));
+
+_.filter([1, 2, 3, 4, 5, 6, 7, 8], function() {
+  return true;
+});
+// [1, 2, 3, 4, 5, 6, 7, 8]
+
+_.filter([1, 2, 3, 4, 5, 6, 7, 8], function() {
+  return true;
+}, 4);
+// [1, 2, 3, 4]
+</script>```
+
+##### [코드 3-79] 앞에서 3개만 매핑하기
+<script>//```javascript
+_.map = bloop(_.array, _.push_to);
+
+_.map([1, 2, 3, 4, 5, 6], function(v) {
+  return v + v;
+}, 3);
+// [2, 4, 6]
+</script>```
+
+## 3.5.2 코드 양과 성능
+
+##### [코드 3-80] for 안의 if 꺼내기
+<script>//```javascript
+function bloop(new_data, body, stopper, is_reduce) {
+  return function(data, iter_predi, opt1) {
+    iter_predi = iter_predi || _.idtt;
+    var result = new_data(data);
+    var memo = is_reduce ? opt1 : undefined;
+    var limiter = is_reduce ? undefined : opt1;
+    var keys = isArrayLike(data) ? null : _.keys(data);
+
+    if (is_reduce) { // reduce
+      for (var i = 0, len = (keys || data).length; i < len; i++) {
+        var key = keys ? keys[i] : i;
+        memo = iter_predi(memo, data[key], key, data);
+      }
+      return memo;
+    }
+    if (stopper) { // find, some, every, findIndex, findKey
+      for (var i = 0, len = (keys || data).length; i < len; i++) {
+        var key = keys ? keys[i] : i;
+        var memo = iter_predi(data[key], key, data);
+        if (stopper(memo)) return body(memo, result, data[key], key);
+      }
+    } else if (limiter) { // each, map, filter, reject을 하면서 limit이 있을 때
+      for (var i = 0, len = (keys || data).length; i < len; i++) {
+        var key = keys ? keys[i] : i;
+        body(iter_predi(data[key], key, data), result, data[key]);
+        if (limiter == result.length) break;
+      }
+    } else { // each, map, filter, reject
+      for (var i = 0, len = (keys || data).length; i < len; i++) {
+        var key = keys ? keys[i] : i;
+        body(iter_predi(data[key], key, data), result, data[key]);
+      }
+    }
+    return result;
+  }
+}
+</script>```
+
+##### [코드 3-81] 핵심 코드 모음
+<script>//```javascript
+function bloop(new_data, body, stopper, is_reduce) {
+  return function(data, iter_predi, opt1) {
+    iter_predi = iter_predi || _.idtt;
+    var result = new_data(data);
+    var memo = is_reduce ? opt1 : undefined;
+    var limiter = is_reduce ? undefined : opt1;
+    var keys = isArrayLike(data) ? null : _.keys(data);
+    var i = -1, len = (keys || data).length; // 이 코드가 위로 올라와 아래가 더 간결해졌다.
+
+    if (is_reduce) {
+      while (++i < len) {
+        var key = keys ? keys[i] : i;
+        memo = iter_predi(memo, data[key], key, data);
+        if (limiter && limiter(memo, data[key], key, data)) break;
+      }
+      return memo;
+    }
+    if (stopper) {
+      while (++i < len) {
+        var key = keys ? keys[i] : i;
+        var memo = iter_predi(data[key], key, data);
+        if (stopper(memo)) return body(memo, result, data[key], key);
+      }
+    } else if (limiter) {
+      while (++i < len) {
+        var key = keys ? keys[i] : i;
+        body(iter_predi(data[key], key, data), result, data[key]);
+        if (limiter == result.length) break;
+      }
+    } else {
+      while (++i < len) {
+        var key = keys ? keys[i] : i;
+        body(iter_predi(data[key], key, data), result, data[key]);
+      }
+    }
+    return result;
+  }
+}
+_.each = bloop(_.identity, _.noop);
+_.map = bloop(_.array, _.push_to);
+_.filter = bloop(_.array, function(b, r, v) { if (b) r.push(v); });
+_.reject = bloop(_.array, function(b, r, v) { if (!b) r.push(v); });
+_.find = bloop(_.noop, _.rester(_.idtt, 2), _.idtt);
+_.findIndex = bloop(_.constant(-1), _.rester(_.idtt, 3), _.idtt);
+_.findKey = bloop(_.noop, _.rester(_.idtt, 3), _.idtt);
+_.some = bloop(_.constant(false), _.constant(true), _.idtt);
+_.every = bloop(_.constant(true), _.constant(false), _.not);
+_.reduce = bloop(_.noop, _.noop, undefined, true);
+</script>```
+
+
+</body>
+</html>

@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="lodash.js"></script>
+  <script>var lodash = _;</script>
+  <script src="partial.js"></script>
+  <script>
+    function slow_or_heavy() {}
+    function fast() {}
+  </script>
+</head>
+<body>
+
+## 5.6.1 지연 평가
+
+## 5.6.2 Lodash의 체인 방식 지연 평가가 아쉬운 이유
+
+## 5.6.3 지연 평가 결정의 기준과 L
+
+##### [코드 5-54] _.map 하고 _.every 하기
+<script>//```javascript
+function square(v) {
+  return v * v;
+}
+
+_.go([2, 4, 11, 2, 7, 12],
+  _.map(square), // 6번 반복
+  _.every(v => v < 100), // 3번 반복
+  console.log);
+// false
+</script>```
+
+##### [코드 5-55]
+<script>//```javascript
+//(1) _ 대신 L 로 바꾸면 지연 평가가 동작한다.
+_.go([2, 4, 11, 2, 7, 12],
+  L.map(square), // 3번 반복 (6번에서 3번으로 줄어듬)
+  L.every(v => v < 100), // 3번 반복
+  console.log);
+// false (총 6번 반복하여 결과를 얻음)
+
+//(2) 위처럼 L로 바꾸었을 때, 내부적으로 동작하는 모습을 표현하면 아래와 같다.
+_.go([2, 4, 11, 2, 7, 12],
+  _.every(_.pipe(square, v => v < 100)), // 3번 반복
+  console.log);
+// false (총 3번 ?)
+</script>```
+
+##### [코드 5-56]
+<script>//```javascript
+// 성능만 놓고 보면 이게 좀 더 낫고
+_.go([2, 4, 11, 2, 7, 12],
+  _.every(v=> square(v) < 100),
+  console.log);
+
+// 이것이 가장 낫다.
+_.go([2, 4, 11, 2, 7, 12],
+  _.every(v=> v * v < 100),
+  console.log);
+
+// 그리고 이게 더 낫다.
+console.log(_.every([2, 4, 11, 2, 7, 12], v => v * v < 100));
+</script>```
+
+##### [코드 5-57] 지연 평가의 기준
+<script>//```javascript
+//(1) 엄격한 평가
+_.go([2, 4, 11, 2, 7, 12], // <--- 이 데이터가 많아도 유리해지고,
+  _.map(slow_or_heavy), // <--- slow_or_heavy가 오래 걸릴 수록 뒤로 미루는 게 좋으며,
+  _.every(fast),   // <--- 최종적으로 꺼내고자 하는 값의 갯수가 적을수록 미루는 것이 좋다.
+  console.log);
+
+//(2) 지연 평가
+_.go([2, 4, 11, 2, 7, 12],
+  L.map(slow_or_heavy),
+  L.every(fast),
+  console.log);
+</script>```
+
+## 5.6.4 컬렉션 중심 프로그래밍
+
+## 5.6.5 수집하기와 거르기
+
+##### [코드 5-58] _.map과 _.pluck
+<script>//```javascript
+_.pluck = function(data, key) {
+  return _.map(data, function(val) { return val[key]; });
+};
+
+var users = [{ id: 1, name: 'ID' }, { id: 3, name: 'BJ' }, { id: 6, name: 'PJ' }];
+
+console.log(_.pluck(users, 'id'));
+// [1, 3, 6]
+
+console.log(_.pluck(users, 'name'));
+// ["ID", "BJ", "PJ"]
+
+console.log(_.map(users, u=>u.id));
+// [1, 3, 6]
+
+console.log(_.map(users, u=>u.name));
+// ["ID", "BJ", "PJ"]
+</script>```
+
+##### [코드 5-59] _.map과 _.values와 _.pairs
+<script>//```javascript
+_.go(users,
+  _.first,
+  _.values,
+  console.log);
+// [1, "ID"]
+
+_.go(users,
+  _.first,
+  _.map(v=>v),
+  console.log);
+// [1,"ID"]
+
+_.go(users,
+  _.first,
+  _.pairs,
+  console.log);
+// [["id",1],["name","ID"]]
+
+_.go(users,
+  _.first,
+  _.map((v, k) => [k, v]),
+  console.log);
+// [["id",1],["name","ID"]]
+</script>```
+
+##### [코드 5-60] _.filter와 _.reject
+<script>//```javascript
+_.reject = function(data, predi) {
+  return _.filter(data, _.negate(predi));
+};
+
+// 위 코드는 아래와 같다
+_.reject = function(data, predi) {
+  return _.filter(data, function(v, i, l) {
+    return !predi(v, i, l);
+  });
+};
+</script>```
+
+##### [코드 5-61] _.difference, _.compact
+<script>//```javascript
+_.difference = function(data, target) {
+  return _.filter(data, function(val) {
+    return !_.contains(target, val);
+  });
+};
+console.log( _.difference([1, 2, 1, 0, 3, 1, 4], [0, 1]));
+// [2, 3, 4]
+
+// 혹은
+_.difference = function(data, target) {
+  return _.reject(data, function(val) {
+    return _.contains(target, val);
+  });
+};
+console.log( _.difference([1, 2, 1, 0, 3, 1, 4], [0, 1]));
+// [2, 3, 4]
+
+_.compact = _.filter(_.identity); // 부분 커링
+console.log( _.compact([0, 1, false, 2, '', 3]) );
+// [1, 2, 3]
+</script>```
+
+## 5.6.6 접기
+
+##### [코드 5-62] _.group_by와 _.reduce
+<script>//```javascript
+var users = [
+  { id: 1, name: 'ID', age: 33 },
+  { id: 2, name: 'BJ', age: 33 },
+  { id: 3, name: 'PJ', age: 29 },
+  { id: 4, name: "JE", age: 27 }
+];
+
+_.group_by = function(data, iter) {
+  return _.reduce(data, function(grouped, val, i, list) {
+    var key = iter(val, i, list);
+    _.has(grouped, key) ? grouped[key].push(val) : grouped[key] = [val];
+    return grouped;
+  }, {});
+};
+
+console.log(
+  _.group_by(users, u => u.age)
+);
+//{
+//  27: [{ id: 4, name: "JE", age: 27 }],
+//  29: [{ id: 3, name: 'PJ', age: 29 }],
+//  33: [{ id: 1, name: 'ID', age: 33 }, { id: 2, name: 'BJ', age: 33 }]
+//}
+
+console.log(
+  _.group_by(users, u => u.age - u.age % 10)
+);
+//{
+//  20: [{ id: 3, name: 'PJ', age: 29 }, { id: 4, name: "JE", age: 27 }],
+//  30: [{ id: 1, name: 'ID', age: 33 }, { id: 2, name: 'BJ', age: 33 }]
+//}
+</script>```
+
+## 5.6.7 찾아내기
+
+##### [코드 5-63] _.take
+<script>//```javascript
+_.take([1, 2, 3, 4]);
+// 1
+_.take([1, 2, 3, 4], 1);
+// [1]
+_.take([1, 2, 3, 4], 2);
+// [1, 2]
+_.take([1, 2, 3, 4], 10);
+// [1, 2, 3, 4]
+</script>```
+
+##### [코드 5-64] _.some
+<script>//```javascript
+_.some = function(data, iter) {
+  iter = iter || function(v) { return v; };
+  var res = false;
+  _.find(data, function(v) { return res = !!iter(v); });
+  return res;
+};
+
+console.log(
+  _.some([0, 0, 1, 0, 2])
+);
+// true
+
+console.log(
+  _.some([0, 0, 1, 0, 2], function(v) { return v > 2; })
+);
+// false
+</script>```
+
+##### [코드 5-65] _.loop로 10대 2명만 찾아내기
+<script>//```javascript
+var users = [
+  { id: 1, name: "ID", age: 12 },
+  { id: 2, name: "BJ", age: 28 },
+  { id: 3, name: "HA", age: 13 },
+  { id: 4, name: "PJ", age: 23 },
+  { id: 5, name: "JE", age: 29 },
+  { id: 6, name: "JM", age: 32 },
+  { id: 7, name: "JE", age: 31 },
+  { id: 8, name: "HI", age: 15 },
+  { id: 9, name: "HO", age: 28 },
+  { id: 10, name: "KO", age: 34 }
+];
+
+var count = 0;
+_.go(users,
+  _.loop(function(list, user) { // 10대 2명만 뽑기
+    count++; // 루프 카운트
+    if (user.age < 20) list.push(user);
+    if (list.length == 2) return _.break(list);
+    return list;
+  }, []),
+  console.log);
+// [{ id: 1, name: "ID", age: 12 }, { id: 3, name: "HA", age: 13 }]
+
+console.log(count); // 3 (루프를 3번만)
+// 3
+</script>```
+
+##### [코드 5-66] _.reduce로 10대 2명으로 접기
+<script>//```javascript
+var count = 0;
+_.go(users,
+  _.reduce(function(list, user) { // 10대 2명만 뽑기
+    count++; // 루프 카운트
+    if (list.length == 2) return list; // 2개를 찾았을 때부터는 반복이 되어도 아무 일 안 하도록
+    if (user.age < 20) list.push(user);
+    return list;
+  }, []),
+  console.log);
+console.log(count); // 10 (루프를 10번)
+</script>```
+
+##### [코드 5-67] 10대 2명만 찾는 코드 간결하게 하기
+<script>//```javascript
+/*
+function(list, user) {
+  if (user.age < 20) list.push(user);
+  if (list.length < 2) return list;
+  return _.break(list);
+}
+*/
+
+_.go(users,
+  _.loop(function(list, user) {
+    return user.age < 20 && list.push(user) == 2 ? _.break(list) : list;
+  }, []),
+  console.log);
+// [{ id: 1, name: "ID", age: 12 }, { id: 3, name: "HA", age: 13 }]
+</script>```
+
+## 5.6.8 3가지 유형(수집하기, 거르기, 찾아내기)과 지연 평가와의 연관성
+
+##### [코드 5-68] 엄격한 평가 3 - map->filter
+<script>//```javascript
+var list = [1, 2, 3, 4, 5, 6];
+_.go(list,
+  _.map(v => v * v),
+  _.filter(v => v < 20),
+  console.log);
+// [1, 4, 9, 16]
+</script>```
+
+##### [코드 5-69] 지연 평가 3 - L.map->L.filter
+<script>//```javascript
+var list = [1, 2, 3, 4, 5, 6];
+_.go(list,
+  L.map(v => v * v),
+  L.filter(v => v < 20),
+  console.log);
+// [1, 4, 9, 16]
+</script>```
+
+##### [코드 5-70] 지연 평가 4 - L.map->L.filter->L.take
+<script>//```javascript
+var count = 0; // 루프 카운트
+var list = [1, 2, 3, 4, 5, 6];
+_.go(list,
+  L.map(function(v) {
+    count++;
+    return v * v;
+  }),
+  L.filter(v => v < 20),
+  L.take(2),
+  console.log);
+// [1, 4]
+
+console.log(count);
+// 2 (2번만 반복)
+</script>```
+
+##### [코드 5-71] 엄격한 평가 4 - map->filter->take
+<script>//```javascript
+var count = 0; // 루프 카운트
+var list = [1, 2, 3, 4, 5, 6];
+_.go(list,
+  _.map(function(v) {
+    count++;
+    return v * v;
+  }),
+  _.filter(v => v < 20),
+  _.take(2),
+  console.log);
+// [1, 4]
+
+console.log(count);
+// 6 (6번 반복)
+</script>```
+
+##### [코드 5-72] 5-65를 연속 실행으로 대체하기
+<script>//```javascript
+var users = [
+  { id: 1, name: "ID", age: 12 },
+  { id: 2, name: "BJ", age: 28 },
+  { id: 3, name: "HA", age: 13 },
+  { id: 4, name: "PJ", age: 23 },
+  { id: 5, name: "JE", age: 29 },
+  { id: 6, name: "JM", age: 32 },
+  { id: 7, name: "JE", age: 31 },
+  { id: 8, name: "HI", age: 15 },
+  { id: 9, name: "HO", age: 28 },
+  { id: 10, name: "KO", age: 34 }
+];
+
+// 10대 2명까지만 찾아내기
+_.go(users,
+  L.filter(user => user.age < 20),
+  L.take(2),
+  console.log);
+// [{ id: 1, name: "ID", age: 12 }, { id: 3, name: "HA", age: 13 }]
+// 3번만 반복
+
+// 10대 2명까지만 찾아내서 이름 수집하기
+_.go(users,
+  L.filter(user => user.age < 20),
+  L.map(v => v.name),
+  L.take(2),
+  console.log);
+// ["ID", "HA"]
+// 3번만 반복
+</script>```
+
+## 5.6.9 더 나은 지연 평가
+
+##### [코드 5-73]
+<script>//```javascript
+var list = _.range(10000);
+var limit = 100;
+var square = function(v) { return v * v; };
+var odd = function(v) { return !!(v % 2); };
+
+console.time();
+_.go(list, L.map(square), L.filter(odd), L.take(limit));
+console.timeEnd();
+/*[1, 9, 25, 49, 81, 121, 169, 225, 289, 361, 441, 529, 625, 729, 841,
+ 961, 1089, 1225, 1369, 1521, 1681, 1849, 2025, 2209, 2401, 2601, 2809,
+ 3025, 3249, 3481, 3721, 3969, 4225, 4489, 4761, 5041, 5329, 5625, 5929,
+ ... 36481, 37249, 38025, 38809, 39601]*/
+// 0.422ms ~ 0.578ms
+
+console.time();
+lodash(list).map(square).filter(odd).take(limit).value();
+console.timeEnd();
+/*[1, 9, 25, 49, 81, 121, 169, 225, 289, 361, 441, 529, 625, 729, 841,
+ 961, 1089, 1225, 1369, 1521, 1681, 1849, 2025, 2209, 2401, 2601, 2809,
+ 3025, 3249, 3481, 3721, 3969, 4225, 4489, 4761, 5041, 5329, 5625, 5929,
+ ... 36481, 37249, 38025, 38809, 39601]*/
+// 1.07ms ~ 1.40ms
+
+console.time();
+for (var i = 0; i < 100000; i++) {
+  _.go(list, L.map(square), L.filter(odd), L.take(limit));
+}
+console.timeEnd();
+// 470ms ~ 637ms
+
+console.time();
+for (var i = 0; i < 100000; i++) {
+  lodash(list).map(square).filter(odd).take(limit).value();
+}
+console.timeEnd();
+// 753ms ~ 984ms
+</script>```
+
+##### [코드 5-74]
+<script>//```javascript
+var list = _.range(200);
+var limit = 10;
+
+console.time();
+for (var i = 0; i < 100000; i++) {
+  _.go(list, L.map(square), L.filter(odd), L.take(limit));
+}
+console.timeEnd();
+// 71ms ~ 88ms
+
+console.time();
+for (var i = 0; i < 100000; i++) {
+  lodash(list).map(square).filter(odd).take(limit).value();
+}
+console.timeEnd();
+// 290ms ~ 364ms
+</script>```
+
+이번에는 약 4배의 정도의 차이다.
+
+데이터 조건이 아래와 같이 바뀌면 차이는 더 많이 난다.
+
+##### [코드 5-75]
+<script>//```javascript
+var list = _.range(199);
+var limit = 10;
+
+console.time();
+for (var i = 0; i < 100000; i++) {
+  _.go(list, L.map(square), L.filter(odd), L.take(limit));
+}
+console.timeEnd();
+// 71ms ~ 91ms
+
+console.time();
+for (var i = 0; i < 100000; i++) {
+  lodash(list).map(square).filter(odd).take(limit).value();
+}
+console.timeEnd();
+// 667ms ~ 759ms
+</script>```
+
+## 5.6.10 지연 평가의 동작 조건을 동적으로 하기
+
+##### [코드 5-76] 지연 평가의 동작 조건을 동적으로 하기
+<script>//```javascript
+var strict_or_lazy1 = __(
+  _.range, // <-- 지연 평가 이전 상황이나 이후 상황에서 아무 일이나 할 수 있다.
+  _.if(list => list.length < 100, __( // 조건에 따라 엄격한 평가로 동작하게 할 수도 있다.
+    _.map(square),
+    _.filter(odd),
+    _.take(10)
+  )).else(__( // 지연 평가 - list.length가 100 이상이면
+    L.map(square),
+    L.filter(odd),
+    L.take(10)
+  )),
+  console.log);
+
+strict_or_lazy1(50);
+// [1, 9, 25, 49, 81, 121, 169, 225, 289, 361]
+// 50 번 반복 (염격)
+
+strict_or_lazy1(100);
+// [1, 9, 25, 49, 81, 121, 169, 225, 289, 361]
+// 20 번 반복 (지연)
+
+strict_or_lazy1(15);
+// [1, 9, 25, 49, 81, 121, 169]
+// 15 번 반복 (엄격)
+</script>```
+
+##### [코드 5-77] L.strict로 지연 평가의 동작 조건을 동적으로 하기
+<script>//```javascript
+var strict_or_lazy2 = __(
+  _.range,
+  L.strict(list => list.length < 100),
+  L.map(square),
+  L.filter(odd),
+  L.take(10),
+  console.log);
+
+strict_or_lazy1(50);
+// [1, 9, 25, 49, 81, 121, 169, 225, 289, 361]
+// 50 번 반복 (염격)
+
+strict_or_lazy2(100);
+// [1, 9, 25, 49, 81, 121, 169, 225, 289, 361]
+// 20 번 반복 (지연)
+
+strict_or_lazy2(15);
+// [1, 9, 25, 49, 81, 121, 169]
+// 15 번 반복 (엄격)
+</script>```
+
+##### [코드 5-78] L.strict로 지연 평가의 동작 조건을 동적으로 하기
+<script>//```javascript
+var strict_or_lazy3 = __(
+  _.range,
+  L.strict(100),
+  L.map(square),
+  L.filter(odd),
+  L.take(10),
+  console.log);
+
+strict_or_lazy3(50);
+// [1, 9, 25, 49, 81, 121, 169, 225, 289, 361]
+// 50 번 반복 (염격)
+
+strict_or_lazy3(100);
+// [1, 9, 25, 49, 81, 121, 169, 225, 289, 361]
+// 20 번 반복 (지연)
+
+strict_or_lazy3(15);
+// [1, 9, 25, 49, 81, 121, 169]
+// 15 번 반복 (엄격)
+</script>```
+
+## 5.6.11 Partial.js
+
+</body>
+</html>

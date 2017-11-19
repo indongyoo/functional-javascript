@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="partial.js"></script>
+</head>
+<body>
+
+## 6.3.1 _.sel과 JSON Selector로 중첩 구조 데이터 다루기
+
+#### [코드 6-22] key로만 찾기
+<script>//```javascript
+var users = [
+  {
+    id: 1,
+    name: 'BJ',
+    post_count: 3,
+    posts: [
+      { id: 1, body: '하이', comments: [{ id: 3, body: '코멘트3' }] },
+      { id: 2, body: '하이2', comments: [{ id: 1, body: '코멘트1' }, { id: 2, body: '코멘트2' }] },
+      { id: 4, body: '하이4', comments: [{ id: 4, body: '코멘트4' }, { id: 5, body: '코멘트5' }] }
+    ]
+  },
+  {
+    id: 2,
+    name: 'PJ',
+    post_count: 1,
+    posts: [
+      { id: 3, body: '하이3', comments: [] }
+    ]
+  }
+];
+
+// key로만 찾기
+console.log(
+  _.sel(users, '0->name'), // BJ
+  _.sel(users, '1 -> name'), // PJ
+  _.sel(users, '0-> post_count'), // 3
+  _.sel(users, '1 ->post_count'), // 1
+  _.sel(users, '0-> posts-> 1-> body') // 하이2
+);
+</script>```
+
+#### [코드 6-23] predicate 1
+<script>//```javascript
+console.log(
+  _.sel(users, '(u=>u.id==1) -> name'), // BJ
+  _.sel(users, '(u=>u.id==1) -> posts -> (p=>p.id==4) -> body') // 하이4
+);
+</script>```
+
+#### [코드 6-24] X-ray 1
+<script>//```javascript
+  _.go(users,
+    _.find(_.l('u=>u.id==1')),
+    function(user) { return user.name; },
+    console.log); // BJ
+
+  _.go(users,
+    _.find(function(u) { return u.id == 1; }), // _.find(_.l('u=>u.id==1'))
+    function(user) { return user.posts; },
+    _.find(function(p) { return p.id == 4; }),
+    function(user) { return user.body; },
+    console.log); // 하이4
+</script>```
+
+#### [코드 6-25] X-ray 2
+<script>//```javascript
+_.go(users,
+  _.find(_.l('$.id==1')), // function($) { return $.id == 1 }
+  function(user) { return user.name; },
+  console.log); // BJ
+
+_.go(users,
+  _.find(_.l('$.id==1')), // function($) { return $.id == 1 }
+  function(user) { return user.posts; },
+  _.find(_.l('$.id==4')), // function($) { return $.id == 4 }
+  function(user) { return user.body; },
+  console.log); // 하이4
+</script>```
+
+#### [코드 6-26] X-ray 3
+<script>//```javascript
+_.go(users,
+  _.find(_.l('#1')), // function($) { return $.id == 1 }
+  function(user) { return user.name; },
+  console.log); // BJ
+
+_.go(users,
+  _.find(_.l('#1')), // function($) { return $.id == 1 }
+  function(user) { return user.posts; },
+  _.find(_.l('#4')), // function($) { return $.id == 4 }
+  function(user) { return user.body; },
+  console.log);
+// 하이4
+</script>```
+
+#### [코드 6-27] predicate 2
+<script>//```javascript
+console.log(
+  _.sel(users, '(#1) -> name'), // BJ
+  _.sel(users, '(#1) -> posts -> (#4) -> body') // 하이4
+);
+</script>```
+
+#### [코드 6-28] X-ray 4 하이4
+<script>//```javascript
+var user = _.find(users, function(user) { return user.id == 1; });
+var posts = user.posts;
+var post = _.find(posts, function(post) { return post.id == 4; });
+var body = post.body;
+console.log(body);
+// 하이4
+</script>```
+
+#### [코드 6-29] predicate 3
+<script>//```javascript
+var users = [
+  {
+    post_count: 3,
+    posts: [
+      { id: 1, body: '하이', comments: [{ id: 3, body: '코멘트3' }] },
+      { id: 2, body: '하이2', comments: [{ id: 1, body: '코멘트1' }, { id: 2, body: '코멘트2' }] },
+      { id: 4, body: '하이4', comments: [{ id: 4, body: '코멘트4' }, { id: 5, body: '코멘트5' }] }
+    ]
+  },
+  {
+    post_count: 1
+  }
+];
+
+console.log(
+  _.sel(users, '($.post_count > 1) -> posts -> ($.comments.length > 1) -> body')
+);
+// 하이2
+</script>```
+
+## 6.3.2 JSON Selector를 이용한 값 변경
+
+#### [코드 6-30] _.set
+<script>//```javascript
+var user = {
+  id: 1,
+  name: 'BJ',
+  post_count: 3,
+  posts: [
+    { id: 1, body: '하이', comments: [{ id: 3, body: '코멘트3' }] },
+    { id: 2, body: '하이2', comments: [{ id: 1, body: '코멘트1' }, { id: 2, body: '코멘트2' }] },
+    { id: 4, body: '하이4', comments: [{ id: 4, body: '코멘트4' }, { id: 5, body: '코멘트5' }] }
+  ]
+};
+
+_.set(user, 'posts -> (#4) -> comments -> (#4) -> body', '코멘트4를 수정');
+
+console.log( user.posts[2].comments[0].body );
+// 코멘트4를 수정
+</script>```
+
+#### [코드 6-31] _.im.set
+<script>//```javascript
+_.go(
+  _.im.set(user, 'posts -> (#4) -> comments -> (#4) -> body', '코멘트4를 새롭게 수정'),
+  function(user2) {
+    console.log(
+      user == user2, // false
+      user.posts[2].comments[0].body, // 코멘트4를 수정
+      user2.posts[2].comments[0].body, // 코멘트4를 새롭게 수정
+
+      user.posts == user2.posts, // false
+      user.posts[0] == user2.posts[0], // true 기존 값 공유
+      user.posts[1] == user2.posts[1], // true 기존 값 공유
+      user.posts[2] == user2.posts[2], // false 부모 라인이므로 새로운 값
+      user.posts[2].comments[0] == user2.posts[2].comments[0], // false 새로운 값
+      user.posts[2].comments[1] == user2.posts[2].comments[1] // true 기존 값 공유
+    )
+  });
+</script>```
+
+## 6.3.3 커스텀 객체 VS 기본 객체
+
+#### [코드 6-32] 커스텀 객체의 구조
+<script>//```javascript
+function Model(attrs) {
+  this._attributes = attrs;
+}
+Model.prototype.get = function(key) {
+  return this._attributes[key];
+};
+Model.prototype.set = function(key, val) {
+  this._attributes[key] = val;
+  return this;
+};
+Model.prototype.unset = function(key) {
+  delete this._attributes[key];
+  return this;
+};
+Model.prototype.toJSON = function() {
+  var json = {};
+  for (var key in this._attributes) {
+    var val = this._attributes[key];
+    json[key] = val && val.toJSON ? val.toJSON() : val; // 안으로 파고 들면서 toJSON
+  }
+  return json;
+};
+
+function Collection(models) {
+  this._models = models.map(function(attrs) { return new Model(attrs); });
+}
+Collection.prototype.at = function(idx) {
+  return this._models[idx];
+};
+Collection.prototype.add = function(model) {
+  return this._models.push(model.constructor == Model ? model : new Model(model));
+};
+Collection.prototype.remove = function(model) {
+  var removed;
+  this._models = this.reject(function(target) {
+    if (target == model || (target.get('id') == ((model.get && model.get('id')) || model.id))) {
+      removed = target;
+      return true;
+    }
+  });
+  return removed;
+};
+Collection.prototype.reset = function() {
+  this._models = [];
+  return this;
+};
+Collection.prototype.filter = function(predicate) {
+  return this._models.filter(predicate);
+};
+Collection.prototype.reject = function(predicate) {
+  return this._models.filter(function(val, idx, models) {
+    return !predicate(val, idx, models);
+  });
+};
+Collection.prototype.toJSON = function() {
+  return this._models.map(function(model) {
+    return model.toJSON(); // 안으로 파고 들면서 toJSON
+  });
+};
+
+var users = new Collection([
+  { id: 1, name: "HA" },
+  { id: 2, name: "PJ" },
+  {
+    id: 3,
+    name: "JE",
+    posts: new Collection([
+      { id: 1, body: "내용1", user: new Model({ id: 3, name: "JE" }) },
+      { id: 2, body: "내용2", user: new Model({ id: 3, name: "JE" }) }
+    ])
+  }
+]);
+
+users.remove({id: 2});
+
+console.log(JSON.stringify(users.toJSON()));
+/*
+ * [{"id":1,"name":"HA"},
+ *  {"id":3,"name":"JE","posts":[
+ *   {"id":1,"body":"내용1","user":{"id":3,"name":"JE"}},
+ *   {"id":2,"body":"내용2","user":{"id":3,"name":"JE"}}]}]
+ * */
+</script>```
+
+## 6.3.4 _.set, _.unset, _.remove2, _.pop, _.shift, _.push, _.unshift
+
+#### [코드 6-33]
+<script>//```javascript
+var users = [
+  {
+    id: 1,
+    name: 'BJ',
+    post_count: 3,
+    posts: [
+      { id: 1, body: '하이', comments: [{ id: 3, body: '코멘트3' }] },
+      { id: 2, body: '하이2', comments: [{ id: 1, body: '코멘트1' }, { id: 2, body: '코멘트2' }] },
+      { id: 4, body: '하이4', comments: [{ id: 4, body: '코멘트4' }, { id: 5, body: '코멘트5' }] }
+    ]
+  },
+  {
+    id: 2,
+    name: 'PJ',
+    post_count: 1,
+    posts: [
+      { id: 3, body: '하이3', comments: [] }
+    ]
+  }
+];
+
+_.unset(users, '(#2)->name');
+console.log(users[1]); // {id: 2, post_count: 1, posts: Array[1]}
+
+_.remove2(users, '(#1)->posts->(#2)');
+console.log(_.pluck(users[0].posts, 'body')); // ["하이", "하이4"]
+
+_.go(_.im.remove2(users, '(#2)->posts->(#3)'), // immutable
+  function(users2) {
+    console.log(users2[1].posts); // []
+    console.log(users[1].posts); // [{ id: 3, body: '하이3', comments: [] }]
+  });
+
+_.extend2(users, '(#2)->posts->(#3)', { body: "하이3 수정함", updated_at: new Date() });
+console.log(users[1].posts[0]);
+// {id: 3, body: "하이3 수정함", comments: Array[0], updated_at: Sun Mar 05 ... }
+
+_.push(users, '(#2)->posts->(#3)->comments', { id: 6, body: '코멘트6' });
+console.log(users[1].posts[0].comments[0].body); // 코멘트6
+</script>```
+
+## 6.3.5 _.set을 통한 값 변경을 함수로 하기
+
+#### [코드 6-34]
+<script>//```javascript
+var users = [
+  {
+    id: 1,
+    name: 'BJ',
+    post_count: 3,
+    posts: [
+      { id: 1, body: '하이', comments: [{ id: 3, body: '코멘트3' }] },
+      { id: 2, body: '하이2', comments: [{ id: 1, body: '코멘트1' }, { id: 2, body: '코멘트2' }] },
+      { id: 4, body: '하이4', comments: [{ id: 4, body: '코멘트4' }, { id: 5, body: '코멘트5' }] }
+    ]
+  },
+  {
+    id: 2,
+    name: 'PJ',
+    post_count: 1,
+    posts: [
+      { id: 3, body: '하이3', comments: [] }
+    ]
+  }
+];
+
+// (1)
+_.set(users, '(#1)->name', function(name) {
+  return name.toLowerCase();
+});
+console.log(_.sel(users, '(#1)->name')); // bj
+
+// (2)
+_.set(users, '(#1)->posts', function(posts) {
+  return _.reject(posts, function(post) {
+    return post.comments.length < 2;
+  });
+});
+console.log(_.sel(users, '(#1)->posts').length);  // 2
+
+// (3) immutable
+_.go(
+  _.im.set(users, '(#1)->posts', function(posts) {
+    return _.pluck(posts, 'body');
+  }),
+  function(users2) {
+    console.log(users == users2); // false
+    console.log(users2[0].posts); // ["하이2", "하이4"]
+    console.log(users[0].posts[0].body); // "하이2"
+  });
+</script>```
+
+## 6.3.6 깊은 값 꺼내기 _.deep_pluck
+
+#### [코드 6-35]
+<script>//```javascript
+var users = [
+  {
+    id: 1,
+    name: 'BJ',
+    posts: [
+      { id: 1, body: '하이', comments: [{ id: 3, body: '코멘트3' }] },
+      { id: 2, body: '하이2', comments: [{ id: 1, body: '코멘트1' }, { id: 2, body: '코멘트2' }] },
+      { id: 4, body: '하이4', comments: [{ id: 4, body: '코멘트4' }, { id: 5, body: '코멘트5' }] }
+    ]
+  },
+  {
+    id: 2,
+    name: 'PJ',
+    posts: [
+      { id: 3, body: '하이3', comments: [{ id: 6, body: '코멘트6' }] }
+    ]
+  }
+];
+console.log(
+  _.deep_pluck(users, 'posts.comments')
+);
+// [ {id: 3, body: "코멘트3"}, {id: 1, body: "코멘트1"}, {id: 2, body: "코멘트2"}, {id: 4, body: "코멘트4"}, {id: 5, body: "코멘트5"}, {id: 6, body: "코멘트6"} ]
+
+console.log(
+  _.deep_pluck(users, 'posts.comments.body')
+);
+// ["코멘트3", "코멘트1", "코멘트2", "코멘트4", "코멘트5", "코멘트6"]
+
+console.log(
+  _.deep_pluck(users, 'posts.comments.id')
+);
+// [3, 1, 2, 4, 5, 6]
+</script>```
+
+</body>
+</html>

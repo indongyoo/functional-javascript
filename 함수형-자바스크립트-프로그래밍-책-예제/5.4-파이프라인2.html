@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="partial.js"></script>
+</head>
+<body>
+
+## 5.4.1 _.go에서 this 사용
+
+##### [코드 5-32] _.go.call
+<script>//```javascript
+var user = { name: "Cojamm" };
+
+_.go.call(user, 32,
+  function(age) {
+    this.age = age;
+  },
+  function() {
+    console.log(this.name);
+    // Cojamm
+  },
+  function() {
+    this.job = "Rapper";
+  });
+
+console.log(user);
+// {name: "Cojamm", age: 32, job: "Rapper"}
+</script>```
+
+## 5.4.2 또 다른 파이프라인 _.indent
+
+##### [코드 5-33] _.indent
+<script>//```javascript
+var f1 = _.indent(
+  function() {
+    console.log(this, arguments); // (1)
+    // { parnet: Window, arguments: [1, 2] }  [1, 2]
+    return "hi";
+  },
+  function() {
+    console.log(this, arguments); // (2)
+    // { parnet: Window, arguments: [1, 2] }  ["hi"]
+  });
+
+f1(1, 2);
+</script>```
+
+##### [코드 5-34] this가 있던 경우
+
+```html
+<button type="button" id="save">저장</button>
+
+<script>
+var save_btn = document.getElementById("save");
+
+// 일반 익명 함수
+save_btn.onmouseover = function() {
+  console.log(this);
+  // <button type="button" id="save">저장</button>
+  console.log(arguments);
+  // [MouseEvent]
+};
+
+// _.pipe여서 button이 담긴 `this`를 내부 모든 함수에서 참조 가능
+save_btn.onmouseout = _.pipe(
+  function() {
+    console.log(this);
+    // <button type="button" id="save">저장</button>
+    console.log(arguments);
+    // [MouseEvent]
+  },
+  function() {
+    console.log(this);
+    // <button type="button" id="save">저장</button>
+    console.log(arguments);
+    // [undefined]
+  });
+
+// _.indent는 내부 모든 함수에서 최초 인자들도 참조 가능
+save_btn.onclick = _.indent(
+  function() {
+    console.log(this);
+    // <button type="button" id="save">저장</button>
+    console.log(arguments);
+    // [MouseEvent]
+    console.log(this.parent);
+    // <button type="button" id="save">저장</button>
+    console.log(this.arguments);
+    // [MouseEvent]
+  },
+  function() {
+    console.log(this.parent);
+    // <button type="button" id="save">저장</button>
+    console.log(this.arguments);
+    // [MouseEvent]
+  });
+</script>
+```
+
+##### [코드 5-35] 값 이어주기
+<script>//```javascript
+var f2 = _.indent(
+  function(a) { this.b = a + 10; },
+  function() {},
+  function() {},
+  function() { console.log(this.b); });
+f2(5);
+// 15
+f2(7);
+// 17
+</script>```
+
+##### [코드 5-36] _.indent 두 번 이상하기
+<script>//```javascript
+var f3 = _.indent(
+  function(a) {
+    this.b = a + 10;
+  },
+  _.indent(
+    function() {
+      this.b = 20;
+      console.log(this.b);
+      // 20
+      console.log(this.parent.b);
+      // 15
+    },
+    function() {
+      console.log(this.parent.arguments);
+      // [5]
+    }),
+  function() {
+    console.log(this.b);
+  });
+
+f3(5);
+</script>```
+
+## 5.4.3 _, __, ___
+
+## 5.4.4 무조건 비동기로 동작하는 _.async
+
+##### [코드 5-37]
+<script>//```javascript
+_.go.async(1, function(a) {
+  return a;
+}).then(console.log);
+console.log(2);
+// 결과 :
+// 2
+// 1
+</script>```
+
+## 5.4.5 _.go에서 비동기 제어 건너뛰기
+
+##### [코드 5-38]
+<script>//```javascript
+_.go(20,
+  _.branch( // branch 내부에서는 비동기 제어가 됨.
+    function(a) {
+      return new Promise(function(resolve) {
+        resolve(a+10);
+      });
+    },
+    function(a) { // a+10을 기다림
+      console.log(a);
+      return a * a;
+    },
+    console.log),
+  console.log); // 20은 즉시 내려옴
+// 결과
+// 20
+// 30
+// 900
+</script>```
+
+</body>
+</html>

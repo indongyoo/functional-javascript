@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="partial.js"></script>
+</head>
+<body>
+
+## 5.3.1 주요 고차 함수의 보조 함수에서 더 많은 인자 사용하기
+
+##### [코드 5-27] 인자 더 많이 넘기기
+<script>//```javascript
+// (1) a, b를 기억하는 익명 함수를 _.map의 iteratee로
+function underscorejs1() {
+  var a = 10;
+  var b = 5;
+  return _.map([1, 2, 3], function(val) {
+    return val * a - b;
+  });
+}
+console.log(underscorejs1());
+// [5, 15, 25]
+
+// (2) _.partial로 a, b를 부분 적용 해둠
+function underscorejs2() {
+  return _.map([1, 2, 3], _.partial(function(a, b, val) {
+    return val * a - b;
+  }, 10, 5));
+}
+console.log(underscorejs2());
+// [5, 15, 25]
+
+// (3) _.map의 인자를 여러개 넘기면 iteratee에게도 인자로 넘겨줌
+function partialjs() {
+  return _.map(10, 5, [1, 2, 3], function(a, b, val) {
+    return val * a - b;
+  });
+}
+console.log(partialjs());
+// [5, 15, 25]
+</script>```
+
+##### [코드 5-28]
+<script>//```javascript
+// Underscore.js
+var mapper1 = function(a, b, list) {
+  return _.map(list, function(val) {
+    return a * b * val;
+  });
+};
+
+console.log( mapper1(10, 100, [1, 2, 3]) );
+// [1000, 2000, 3000]
+
+// Partial.js
+var mapper2 = _.map(function(a, b, val) {
+  return a * b * val;
+});
+
+console.log( mapper2(10, 100, [1, 2, 3]) );
+// [1000, 2000, 3000]
+
+function mult(a, b) {
+  return a * b;
+}
+var mult_all = _.map(function() {
+  return _.reduce(_.initial(arguments, 2), mult);
+});
+console.log( mult_all(10, 10, 2, [1, 2, 3]) );
+// [200, 400, 600]
+console.log( mult_all(10, 10, [1, 2, 3]) );
+// [100, 200, 300]
+
+var mult_all2 = _.map(__(
+  _.args,
+  _.initial(2),
+  _.reduce(mult)));
+
+console.log( mult_all2(10, 10, 2, [1, 2, 3]) );
+// [200, 400, 600]
+console.log( mult_all2(10, 10, [1, 2, 3]) );
+// [100, 200, 300]
+</script>```
+
+## 5.3.2 _.all, _.spread
+
+##### [코드 5-29] 일반 사용
+<script>//```javascript
+_.all(10, 5, [
+  function(a, b) { return a + b },
+  function(a, b) { return a - b },
+  function(a, b) { return a * b }]);
+// 결과:
+// arguments { 0: 15, 1: 5, 2: 50, _mr: true }
+
+_.spread(10, 5, [
+  function(a) { return a * a },
+  function(b) { return b * b }]);
+// 결과:
+// arguments { 0: 100, 1: 25, _mr: true }
+</script>```
+
+##### [코드 5-30] 파이프라인과 함께 사용
+<script>//```javascript
+_.go(10,
+  _.all(
+    function(a) { return a + 5 }, // a는 모두 10
+    function(a) { return a - 5 }, // a는 모두 10
+    function(a) { return a * 5 }), // a는 모두 10
+  _.spread(
+    function(a) { return a + 1 }, // a는 15
+    function(b) { return b + 2 }, // b는 5
+    function(c) { return c + 3 }), // c는 50
+  console.log);
+// 결과:
+// 16 7 53
+</script>```
+
+##### [코드 5-31] 비동기
+<script>//```javascript
+_.go(10,
+  _.all(
+    function(a) {
+      return new Promise(function(resolve) { // `Promise` 객체 리턴
+        setTimeout(function() {
+          resolve(a + 5); // 15
+        }, 2000);
+      });
+    },
+    function(a) { return a - 5 }, // 5
+    function(a) { return a * 5 }), // 50
+  _.spread(
+    function(a) { return a + 1 }, // 16
+    _.callback(function(b, next) {  // 콜백 패턴
+      setTimeout(function() {
+        next(b + 2); // 7
+      }, 2000);
+    }),
+    function(c) { return c + 3 }), // 53
+  console.log);
+// 결과:
+// 약 4초 뒤 16 7 53
+</script>```
+
+</body>
+</html>

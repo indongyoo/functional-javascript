@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="partial.js"></script>
+</head>
+<body>
+
+## 9.1.1 메모이제이션 코드로 이해하기
+
+##### [코드 9-1]
+<script>//```javascript
+function memoize(func) { // memoize는 함수를 받는 함수다.
+  var cache = {};        // 이 객체에 결과를 남겨둘 것이다.
+  return function(arg) {
+    if (cache[arg]) {  // 이미 동일 인자에 대한 결과가 있으면 리턴
+      console.log('캐시로 결과 바로 리턴', arg);
+      return cache[arg];
+    }
+    console.log('본체 실행', arg);
+    return cache[arg] = func.apply(this, arguments); // 받아둔 함수를 실행하면서 결과를 cache에 남겨둠
+  }
+}
+</script>```
+
+##### [코드 9-2]
+<script>//```javascript
+var mult5 = memoize(function(a) {
+  return a * 5;
+});
+
+console.log( mult5(1) );
+// 본체 실행 1
+// 5
+
+console.log( mult5(2) );
+// 본체 실행 2
+// 10
+
+console.log( mult5(1) );
+// 캐시로 결과 바로 리턴 1
+// 5
+
+console.log( mult5(1) );
+// 캐시로 결과 바로 리턴 1
+// 5
+</script>```
+
+##### [코드 9-3] memoize의 한계
+<script>//```javascript
+var add = memoize(function(a, b) {
+  return a + b;
+});
+
+console.log( add(3, 5) );
+// 본체 실행 3
+// 8
+
+console.log( add(3, 10) );
+// 캐시로 결과 바로 리턴 3
+// 8
+// 캐시가 동작했지만 3에만 의존하기 때문에 오류
+
+var keys = memoize(function(obj) {
+  return _.keys(obj);
+});
+
+console.log( keys({a: 1, b: 2}) );
+// 본체 실행 Object {a: 1, b: 2}
+// ["a", "b"]
+
+console.log( keys({a: 1, b: 2}) );
+// 캐시로 결과 바로 리턴 Object {a: 1, b: 2}
+// ["a", "b"]
+
+console.log( keys({a: 10, b: 20}) );
+// 캐시로 결과 바로 리턴 Object {a: 1, b: 2}
+// ["a", "b"]
+// 잘 동작하는 듯 했지만 cache가 { [object Object]: ... } 이런식으로 되기 때문에 오류
+</script>```
+
+## 9.1.2 Underscore.js의 _.memoize
+
+##### [코드 9-4]
+<script>//```javascript
+_.memoize = function (func, hasher) { // 본체 함수와 hasher 함수를 받음
+  var memoize = function (key) {
+    var cache = memoize.cache;
+    var address = '' + (hasher ? hasher.apply(this, arguments) : key);
+    // hasher가 있으면 hasher에게도 인자들을 넘겨 cache의 key로 사용할 address를 생성
+    // 없으면 첫 번째 인자를 그대로 사용
+    if (!_.has(cache, address)) cache[address] = func.apply(this, arguments);
+    // (1) 결과가 없을 때만 함수를 실행하여 cache에 담음
+    return cache[address]; // 결과 리턴
+  };
+  memoize.cache = {}; // (2) 클로저를 사용하지 않고 리턴할 함수 자체에 cache를 달아둠
+  return memoize;
+};
+</script>```
+
+## 9.1.3 Partial.js의 _.memoize2
+
+##### [코드 9-5]
+<script>//```javascript
+var f1 = _.memoize2(function(obj) {
+  console.log('함수 본체에 들어옴');
+  return obj.a + 10;
+});
+
+var obj1 = { a: 1 };
+var obj2 = { a: 2 };
+
+console.log( f1(obj1) );
+// 함수 본체에 들어옴
+// {a:11}
+console.log( f1(obj1) );
+// {a:11} (캐시 사용)
+console.log( f1(obj1) );
+// {a:11} (캐시 사용)
+
+console.log( f1(obj2) );
+// 함수 본체에 들어옴
+// {a:12}
+console.log( f1(obj2) );
+// {a:12} (캐시 사용)
+</script>```
+
+##### [코드 9-6] mutable
+<script>//```javascript
+var evens = _.memoize2(function(list) {
+  console.log('함수 본체에 들어와서 loop 실행');
+  return _.filter(list, function(num) {
+    return num % 2 == 0;
+  })
+});
+
+var list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+console.log( evens(list) );
+// 함수 본체에 들어와서 loop 실행
+// [2, 4, 6, 8, 10]
+console.log( evens(list) );
+// [2, 4, 6, 8, 10] (캐시를 사용하여 loop를 돌지 않음)
+
+list.push(11);
+list.push(12);
+console.log( list );
+// [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+console.log( evens(list) );
+// [2, 4, 6, 8, 10] (캐시가 사용되어 10이 그대로 남음)
+</script>```
+
+##### [코드 9-7] immutable
+<script>//```javascript
+var list2 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+console.log( evens(list2) );
+// 함수 본체에 들어와서 loop 실행
+// [2, 4, 6, 8, 10]
+console.log( evens(list2) );
+// [2, 4, 6, 8, 10] (캐시를 사용하여 loop를 돌지 않음)
+
+list2 = list2.concat(11, 12);
+console.log( list2 );
+// [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+console.log( evens(list2) );
+// 함수 본체에 들어와서 loop 실행
+// [2, 4, 6, 8, 10, 12]
+
+console.log( evens(list2) );
+// [2, 4, 6, 8, 10, 12] (캐시를 사용하여 loop를 돌지 않음)
+</script>```
+
+## 9.1.3.1 _.memoize2 와 _.im 을 함께 사용하여 중첩 구조의 데이터 다루기
+
+##### [코드 9-8]
+<script>//```javascript
+var users = [
+  { id: 1, name: "ID", age: 32, count: { review: 3, cart: 5 } },
+  { id: 2, name: "HA", age: 25, count: { review: 8, cart: 4 } },
+  { id: 3, name: "BJ", age: 32, count: { review: 0, cart: 0 } },
+  { id: 4, name: "PJ", age: 28, count: { review: 4, cart: 5 } },
+  { id: 5, name: "JE", age: 27, count: { review: 5, cart: 2 } },
+  { id: 6, name: "JM", age: 32, count: { review: 4, cart: 6 } },
+  { id: 7, name: "JI", age: 31, count: { review: 7, cart: 2 } }
+];
+
+var best_reviewers = _.memoize2(function(list) {
+  console.log('함수 본체에 들어와서 loop 실행');
+  return _.filter(list, function(user) {
+    return user.count.review > 5;
+  })
+});
+
+var cart_is_empty = _.memoize2(function(list) {
+  console.log('함수 본체에 들어와서 loop 실행');
+  return _.filter(list, function(user) {
+    return user.count.cart == 0;
+  })
+});
+
+console.log('************************************');
+_.go(users,
+  best_reviewers,
+  _.pluck('name'),
+  console.log);
+// 함수 본체에 들어와서 loop 실행
+// ["HA", "JI"]
+
+_.go(users,
+  best_reviewers,
+  _.pluck('name'),
+  console.log);
+// ["HA", "JI"] (캐시 사용)
+
+_.go(users,
+  cart_is_empty,
+  _.pluck('name'),
+  console.log);
+// 함수 본체에 들어와서 loop 실행
+// ["BJ"]
+
+_.go(users,
+  cart_is_empty,
+  _.pluck('name'),
+  console.log);
+// ["BJ"] (캐시 사용)
+</script>```
+
+##### [코드 9-9]
+<script>//```javascript
+// users를 새로 재할당
+users = _.im.set(users, '(#3)->count', {
+  review: 10,
+  cart: 1
+});
+
+_.go(users,
+  best_reviewers,
+  _.pluck('name'),
+  console.log);
+// 함수 본체에 들어와서 loop 실행
+// ["HA", "BJ", "JI"]
+
+_.go(users,
+  best_reviewers,
+  _.pluck('name'),
+  console.log);
+// ["HA", "BJ", "JI"] (캐시 사용)
+
+_.go(users,
+  cart_is_empty,
+  _.pluck('name'),
+  console.log);
+// 함수 본체에 들어와서 loop 실행
+// []
+
+_.go(users,
+  cart_is_empty,
+  _.pluck('name'),
+  console.log);
+// [] (캐시 사용)
+</script>```
+
+##### [코드 9-10]
+<script>//```javascript
+var predicate = _.memoize2(function(user) {
+  console.log('predicate 실행');
+  return user.count.review > 5;
+});
+
+var best_reviewers2 = _.memoize2(function(list) {
+  console.log('함수 본체에 들어와서 loop 실행');
+  return _.filter(list, predicate);
+});
+
+_.go(users,
+  best_reviewers2,
+  _.pluck('name'),
+  console.log);
+// 함수 본체에 들어와서 loop 실행
+// predicate 실행 * 7번 실행
+// ["HA", "BJ", "JI"]
+
+_.go(users,
+  best_reviewers2,
+  _.pluck('name'),
+  console.log);
+// ["HA", "BJ", "JI"] (캐시 사용)
+
+users = _.im.set(users, '(#3)->count->review', 2);
+// BJ의 count.review를 다시 줄임
+
+_.go(users,
+  best_reviewers2,
+  _.pluck('name'),
+  console.log);
+// 함수 본체에 들어와서 loop 실행
+// predicate 실행 * 1번 실행
+// ["HA", "JI"]
+</script>```
+
+## 9.1.4 _.memoize2 내부와 JSON.stringify
+
+##### [코드 9-11]
+<script>//```javascript
+_.memoize2 = function(mid) {
+  return function(func) {
+    var memoize_id = ++mid;
+    var f = arguments.length == 1 ? func : __.apply(null, arguments);
+    return function(obj) {                      // 함수로 달아 놓음
+      return _.has(obj._memoize || (obj._memoize = function(){}), memoize_id) ?
+        obj._memoize[memoize_id] : (obj._memoize[memoize_id] = f(obj));
+    }
+  }
+}(0);
+</script>```
+
+</body>
+</html>
