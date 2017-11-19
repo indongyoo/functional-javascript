@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <!--<script src="jquery.js"></script>-->
+  <script src="lodash.js"></script>
+  <script>var lodash = _;</script>
+  <script src="underscore.js"></script>
+  <script>
+    var $ = {
+      get: function(url, callback) { callback(1); }
+    }
+  </script>
+</head>
+<body>
+
+Underscore.js는 작고 놀라운 함수형 자바스크립트 라이브러리다. 1,600줄 정도로 구현되어 있는 이 작은 라이브러리는 약 113개 정도의 함수를 제공한다. 데이터를 다루는 자바스크립트 라이브러리 대부분은 Underscore.js를 사용하거나 유 사 라이브러리인 Lodash를 사용하고 있다.
+
+처음에는 Underscore.js가 빈약한 자바스크립트의 기본 객체들을 다루기 위한 유틸성 라이브러리인 줄 알았다. 필자는 Underscore.js보다 백엔드의 ORM이나 프론트엔드의 Backbone Model 등에서 제공되는 Underscore 스타일의 메서드를 먼저 접했다. 익숙해지니 편리하여 Underscore.js를 직접 사용하기 시작했다. 얼마 되지 않아 Underscore.js는 필자가 개발 중인 소프트웨어들의 곳곳을 차지 했다. 그저 작고 가벼운 유틸이라 생각했던 이 라이브러리는 자바스크립트를 함수적으로 다루는 패러다임을 제시하고 있었다.
+
+Underscore.js의 함수들은 간결하고 단순하며 아주 작다. Underscore.js의 함수 하나가 하는 일은 매우 작지만 함수들 사이에 아주 잘 어우러진다. 함수의 결과가 또 다른 함수의 인자와 어울리고, 함수로 만든 함수가 다른 고차 함수의 보조 함수로 사용되는 등 함수와 함수들 간의 연계가 잘 이루어지도록 준비가 잘 되어 있다. 이러한 높은 조합성은 복잡한 로직도 쉽고 견고하게 만들 수 있도록 도와준다. Underscore.js는 어디에서나 사용 가능하다. 웹 브라우저에서도, Node.js에서도 유용하게 사용할 수 있다. 어떤 프레임워크나 다른 라이브러리들을 쓰고 있다고 하더라도 함께 사용할 수 있다. 그저 함수들이기 때문이다.
+
+Underscore.js를 만든 제레미 애쉬케나스(Jeremy Ashkenas)는 CoffeeScript와 Backbone 등도 만들었다. 그중 Backbone은 Underscore.js로 만들어졌다. Underscore.js의 영향력은 상당하다. GitHub에서 underscore를 검색해 보면 다양한 버전의 관련 라이브러리 혹은 유사 라이브러리를 볼 수 있다. 또한 Lua, Swift, Objective-C, PHP, Go, Python 등의 다양한 언어 버전의 Underscore도 확인할 수 있다. Underscore.js는 아주 많은 웹 서비스와 자바스크립트 관련 오픈소스 등에 직접 사용되고 있거나 영향을 끼쳤다.
+
+## 3.1.1 Underscore.js 간단히 써보기
+
+Underscore.js나 Lodash 등의 함수들은 자바스크립트에서의 함수형 패러다임을 잘 보여준다. Underscore.js의 유명한 함수 몇 가지를 간단히 사용해 보자.
+
+##### [코드 3-1] _.each 간단히 써보기
+<script>//```javascript
+_.each([1, 2, 3], function(val, idx, list) { console.log(val, idx, list); });
+// 1 0 list
+// 2 1 list
+// 3 2 list
+// [1, 2, 3]
+</script>```
+
+`_.each`는 `[1, 2, 3].forEach`와 비슷하게 동작한다. `_.each`와 `Array.prototype.forEach`는 비슷하지만 사실은 꽤 많이 다르다. 다음을 보자.
+
+##### [코드 3-2] forEach와 _.each의 차이
+<script>//```javascript
+[1, 2, 3].forEach(function(val, idx, list) { console.log(val, idx, list); });
+// 1 0 list
+// 2 1 list
+// 3 2 list
+// undefined
+
+_.each({ a: 1, b: 2 }, function(val, key, obj) { console.log(val, key, obj); });
+// "a" {a: 1, b: 2}
+// "b" {a: 1, b: 2}
+// {a: 1, b: 2}
+</script>```
+
+첫 번째로 리턴 값이 다르다. 함수의 리턴 값이 다르다는 것은 사실 아주 큰 차이다. `_.each`는 자신이 받았던 첫 번째 인자를 그대로 리턴한다. `Array.prototype.forEach`는 `undefined`를 리턴한다.
+
+두 번째 차이는 사용 가능한 값의 종류가 `_.each`가 더 많다는 것이다. `_.each`는 key/value 쌍으로 구성된 객체를 인자로 받을 수 있고 `$('li')`도 받을 수 있다. 여기서 `$`는 jQuery이고 `$('li')`의 결과는 배열과 비슷한 모습을 지닌 jQuery 객체다. `_.each`는 배열 아닌 배열 같은 객체들도 지원한다. 이를 보통 ArrayLike 객체라고 하는데 이것에 대해서는 111쪽 3.2절에서 자세히 설명한다.
+
+##### [코드 3-3] _.reject, _.contains, _.isArray
+<script>//```javascript
+var list = [1, 2, 3, 4, 5, 6];
+_.reject(list, function(num) { return num % 2 == 0; });
+// [1, 3, 5]
+console.log(list);
+// [1, 2, 3, 4, 5, 6]
+
+_.contains([1, 2, 3], 3);
+// true
+
+_.isArray([1, 2, 3]);
+// true
+</script>```
+
+`_.reject`는 `list`를 받아 `predicate`를 실행하여 `true`로 평가된 값들을 제외한다. 그리고 남아 있는 값들만 담긴 새로운 `list`를 리턴한다('새로운'이 중요하다).
+
+`_.contains`는 첫 번째 인자인 배열에 두 번째 인자와 동일한 값이 포함되어 있는지를 true/false로 리턴하고 `_.isArray`는 객체의 type이 `Array`가 맞는지를 검사한다. IE9 미만에서는 `Array.isArray`가 없어서 _.isArray가 필요하다.
+
+##### [코드 3-4] _.pluck, _.first, _.last, _.rest, _.lastIndexOf
+<script>//```javascript
+var users = [
+  { id: 1, name: "ID", age: 32 },
+  { id: 2, name: "HA", age: 25 },
+  { id: 3, name: "BJ", age: 32 },
+  { id: 4, name: "PJ", age: 28 },
+  { id: 5, name: "JE", age: 27 },
+  { id: 6, name: "JM", age: 32 },
+  { id: 7, name: "HI", age: 24 }
+];
+_.pluck(users, 'name');
+// ["ID", "HA", "BJ", "PJ", "JE", "JM", "HI"]
+
+_.first([5, 4, 3, 2, 1]);
+// 5
+_.first([5, 4, 3, 2, 1], 1);
+// [5]
+_.first([5, 4, 3, 2, 1], 2);
+// [5, 4]
+
+_.last([5, 4, 3, 2, 1]);
+// 1
+_.last([5, 4, 3, 2, 1], 1);
+// [1]
+_.last([5, 4, 3, 2, 1], 2);
+// [2, 1]
+
+_.rest([5, 4, 3, 2, 1]);
+// [4, 3, 2, 1]
+_.rest([5, 4, 3, 2, 1], 2);
+// [3, 2, 1]
+
+_.initial([5, 4, 3, 2, 1]);
+// [5, 4, 3, 2]
+_.initial([5, 4, 3, 2, 1], 2);
+// [5, 4, 3]
+
+_.lastIndexOf([1, 2, 3, 1, 2, 3], 2);
+// 4
+_.lastIndexOf([1, 2, 3, 1, 2, 3], 3);
+// 5
+_.lastIndexOf([1, 2, 3, 1, 3], 2);
+// 1
+
+_.flatten([[1, 2, 3], [4, 5], 6]);
+// [1, 2, 3, 4, 5, 6]
+</script>```
+
+`_.pluck`는 `users`처럼 배열 내부의 값들이 key/value 쌍으로 구성된 객체일 때 사용한다. 두 번째 인자로 넘긴 key에 해당하는 value를 모아서 리턴한다. 안쪽에 있는 값들을 짧은 코드로 뽑아 낼 수 있어 유용하다. 역시 기존의 `users`의 내용을 바꾸는 것이 아닌 새로운 `list`를 만들어 값을 담는다.
+
+`_.first(list)`는 `list[0]`와 같고 `_.last(list)`는 `list[list.length-1]`와 같다. `list[0]`과 같이 key로 접근하면 되는 일을 굳이 함수로 만들 필요가 있을까 싶을 수 있지만, 사소한 것도 함수로 만들어 두면 조합성이 생기고 실행 시점을 다룰 수 있는 등의 이점이 있다. `_.first`와 `_.last`의 두 번째 인자는 앞이나 뒤에서부터 몇 개를 남길 것인지에 대한 옵션이다.
+
+`_.rest`는 앞쪽의 값을 제외한 새로운 리스트를 리턴한다. 두 번째 인자는 몇 개의 값을 제외할 것인지에 대한 옵션이다. `_.initial`은 `_.rest`의 반대 방향으로 동작한다.
+
+`_.lastIndexOf`는 뒤에서부터 동일한 값을 찾아 index를 리턴한다. 뒤에서부터 새는 것이 아니라 뒤에서부터 찾는 것이다.
+
+`_.flatten`은 코드 2-42에서 만들었던 `flatten`과 동일한 일을 한다. 깊이를 가진 배열을 펴주는 함수다.
+
+##### [코드 3-5] _.values, _.keys, _.extend, _.pick, _.omit
+<script>//```javascript
+_.values({ id: 1, name: "ID", age: 32 });
+// [1, "ID", 32]
+
+_.keys({ id: 1, name: "ID", age: 32 });
+// ["id", "name", "age"]
+
+_.extend({ id: 1, name: "ID", age: 32 }, { age: 65, job: "Developer" });
+// { id: 1, name: "ID", age: 65, job: "Developer" }
+
+_.pick({ id: 1, name: "ID", age: 32 }, 'name', 'age');
+// { name: 'ID', age: 32 }
+
+_.omit({ id: 1, name: "ID", age: 32 }, 'name', 'age');
+// { id: 1 }
+</script>```
+
+`_.values`는 객체의 값들을 리턴하고 `_.keys`는 객체의 key들을 리턴한다. 좀 더 자세히 설명하면 `_.values`와 `_.keys`는 객체의 `prototype`에 붙은 key와 value는 제외하고 직접 가진 값만 리턴한다. 리턴된 값은 역시 새로운 객체다.
+
+`_.extend`는 왼쪽에 있는 객체에 오른쪽의 객체를 덮어 씌운다. 같은 `key`가 있다면 내용을 덮어 씌우고, 없다면 `key/value`를 추가한다. `_.extend`는 맨 왼쪽의 객체가 직접 변경된다. 오른쪽의 객체는 그대로지만 맨 왼쪽 객체의 상태를 변경하고 있다. 변경을 원하지 않는다면 맨 앞에 새로운 객체를 넣으면 된다. `_.extend({}, obj1, obj2);` 이렇게 하면 `obj1`과 `obj2`는 원래의 값 그대로 보존된다.
+
+`_.pick`은 두 번째 인자에 넘겨진 key들을 기준으로 key/value를 남긴다. `_.omit`은 두 번째 인자로 넘겨진 key들을 제외한다. 두 함수 역시 기존 객체를 변경하지 않고 새로운 값을 만든다.
+
+##### [코드 3-6] _.negate
+<script>//```javascript
+var eq5 = function(a) { return a == 5; };
+eq5(5);
+// true
+
+var neq5 = _.negate(eq5);
+neq5(5);
+// false
+</script>```
+
+특이한 함수를 하나 만나보자. `_.negate`에게 함수를 전달하면 원래 함수의 결과를 반대로 바꾸는 함수를 리턴한다. 얼핏 보면 그냥 값을 반대로 바꾸는 함수로 헷갈릴 수 있는데, '받아둔 함수를 실행하여 나온 결과를 반대로 바꾸는 함수'를 리턴하는 함수다. `_.negate`는 다음처럼 구현되어 있다.
+
+##### [코드 3-7] _.negate 내부
+<script>//```javascript
+// _.negate = function(v) { return !v }; 이게 아니다.
+
+_.negate = function(func) {
+  return function() {
+    return !func.apply(this, arguments); // 받아둔 함수를 실행한 후 !를 한다.
+  }
+}
+</script>```
+
+`_.noop`은 인자를 무엇을 받든 항상 `undefined`만 리턴하는 함수다. 이 함수는 대체 어디에 쓰일까? `_.noop`은 정말 아래처럼 구현되어 있다.
+
+##### [코드 3-8] _.noop
+<script>//```javascript
+_.noop();
+// undefined
+_.noop(10);
+// undefined
+_.noop({});
+// undefined
+
+_.noop = function() {};
+</script>```
+
+이런 함수를 왜 구현했을까? `_.noop`을 보고 처음에는 정말 황당했다. 하지만 `_.noop`은 생각보다 정말 많이 사용되고 매우 요긴하다. 어디에 쓰일지는 138쪽 3.2.5절에서 사례를 볼 수 있다.
+
+다음은 Underscore.js를 체인 방식으로 사용하는 예제다.
+
+##### [코드 3-9] 체인
+<script>//```javascript
+// Functional
+_.filter(
+  _.map([1, 2, 3], function(n) { return n * 2; }),
+  function(n) { return n <= 4; });
+// [2, 4]
+
+// Chaining
+_.chain([1, 2, 3])
+  .map(function(n) { return n * 2; }) // { _wrapped: [2, 4, 6] }
+  .filter(function(n) { return n <= 4; })
+  .value();
+// [2, 4]
+</script>```
+
+위 코드의 결과는 모두 같다. Underscore.js의 `_.chain`을 이용하면 값을 바꿔 나갈 객체가 생성되고 Underscore.js의 함수들을 체인 방식으로 계속 실행할 수 있다. 메서드가 실행될 때마다 내부의 값을 바꿔 놓는다. 체인 방식으로 코드를 작성하면 위에서 아래로 코드를 읽어 나갈 수 있다는 장점이 생긴다. 마지막에 `.value()`를 실행하기 전까지는 메서드를 계속 실행할 수 있고 `.value()`를 통해 최종 값을 얻어낸다.
+
+지금까지 Underscore.js를 가볍게 훑어보았다. 모든 기능을 자세히 사용해 보지는 못했지만 전체적으로 빠르게 사용해 보았다. 필자가 처음 Underscore.js를 접했을 때는 ‘유용해 보이나, 실제 활용도는 낮을 것 같다’고 생각했다. Underscore.js의 매력은 이렇게 잠깐 봐서는 알기 어렵다. 그래도 대략 어떤 라이브러리인지 감을 잡았을 것이다.
+
+체인 방식을 지원하긴 하지만 기본적으로 Underscore.js의 함수들은 메서드가 아닌 함수다. 객체를 만들고 메서드를 실행하는 식으로 사용하지 않는다. 이를테면 `[1, 2, 3].forEach(...)`처럼 사용하지 않는다. 함수는 이미 모두 선언되어 있고 실행하고 싶을 때 실행하면 된다. `initialize`등이 필요하지 않다. 주로 첫 번째 인자가 주요 재료가 되며 두 번째 인자나 세 번째 인자와 함께 사용하여 결과를 만든다.
+
+또한 객체의 메서드가 아니므로 하나의 함수가 여러 개의 `type`을 지원할 수 있다. Underscore.js는 다형성이 매우 높다. 첫 번째 인자로 받는 데이터형뿐 아니라 그 데이터의 안쪽 데이터도 무엇이 들어있든지 상관없다. 앞에서 보았듯이 바깥쪽 값의 다형성은 `_.reject` 등의 고차 함수가 지원하고, 안쪽 값의 다형성은 `predicate`와 같은 보조 함수를 통해 지원한다. 메서드가 아닌 함수이기에 아무 값이나 받을 수 있으며, 함수를 통해 추상화했기에 아무 값이나 들어 있어도 된다.
+
+## 3.1.2 Underscore.js vs Lodash
+
+흔히 Underscore.js는 나온 지 좀 되었고 Lodash는 Underscore.js의 확장판이면서 성능 개선판이라고 소개한다. 다음은 Lodash의 지연 평가(lazy evaluation)에 대한 어느 영어권 개발자의 글이다. (원문은 http://filimanjaro.com/blog/2014/introducing-lazy-evaluation/에서 볼 수 있다.)
+
+> Lodash는 Underscore.js의 성능 개선판이다. Lodash에는 지연 평가 알고리즘이 적용되어있다. Lodash는 지연 평가를 통해 메서드가 실행되기 전에 자동으로 로직을 개선한다. 덕분에 100배 이상의 성능 향상을 얻을 수도 있다. Lodash는 Underscore.js의 API를 그대로 유지하면서도 엔진을 강력하게 바꿨다. 새로운 것을 배울 필요가 없고 코드를 크게 고칠 필요도 없이 Lodash로 변경할 수 있다.
+
+문장 자체는 틀린 말이 없고 이를 증명하는 예제도 있다. 그런데 Lodash가 정말 Underscore.js보다 빠를까? Lodash가 정말 더 강력한 엔진을 가지고 있을까? 결론부터 얘기하면 꼭 그렇지는 않다.
+
+## 3.1.3 지연 평가 1 (take)
+
+Lodash의 성능 개선 상황은 크게 3가지가 있다. `take`를 통한 지연 평가, `map->map->map`과 같은 상황에서의 지연 평가(lazy evaluation), 그리고 지연 실행(deferred execution)이다. 이들은 모두 체인 방식에서만 동작한다.
+
+`take`를 통한 지연 평가에 대한 예제를 보자. Lodash는 지연 평가를 통해 `filter`와 `take` 등이 하나의 체인에서 함께 사용될 때 `take`의 값을 이용해 성능을 최적화한다. `filter`의 경우 `take`에게 넘긴 숫자만큼 값이 모아졌으면 루프를 빠져나가 더 이상 조회하지 않도록 한다. 예제에서 Underscore.js는 `_`이고 Lodash는 `lodash`이다.
+
+##### [코드 3-10]
+<script>//```javascript
+var list = _.range(50);
+// [0, 1, 2, 3, 4, 5 ... 49]
+
+// Underscore.js
+var _i = 0;
+var result1 =
+  _.chain(list)
+    .filter(function(num) {
+      _i++;
+      return num % 2 == 0;
+    })
+    .take(5)
+    .value();
+
+console.log(result1, _i);
+// [0, 2, 4, 6, 8] 50 (50번 반복)
+
+// Lodash
+var lodash_i = 0;
+var result2 =
+  lodash.chain(list)
+    .filter(function(num) {
+      lodash_i++;
+      return num % 2 == 0;
+    })
+    .take(5)  // <---- 이 값에 따라 위에서 5개가 모이면 루프를 멈추도록 한다.
+    .value();
+
+console.log(result2, lodash_i);
+// [0, 2, 4, 6, 8] 50 (50번 반복)
+</script>```
+
+예상대로라면 `_i`와 `lodash_i`가 달라야 할 것 같은데 둘 다 완전히 동일하게 동작했다. 지연 평가를 통해 더 나은 성능을 내야 하는데 그러지 못하고 있다. 왜 그럴까? 사실 Lodash의 `take`를 이용한 `filter` 성능 개선 로직은 `list.length`가 200 이상일 때부터만 동작한다. 왜 Lodash는 그렇게 했을까?
+
+잠깐 실무적인 상황을 떠올려보자. `length`를 200개 이상 가진 `list`를 다루는 경우가 많을까? 물론 있겠지만 그보다 적은 `length`의 `list`를 다루는 경우가 훨씬 많을 것이다. 200개 이상을 가진 `list`를 사용한다고 하더라도 그 이후 `filter`를 통해 거르는 경우는 더 적을 것이다.
+
+Lodash가 아무런 이유 없이 200개의 제한을 걸었을까? 만일 200개 이하의 값을 다룰 경우가 더 많다고 가정하면, 무조건 지연 평가를 하는 것은 오히려 성능상 불리하다. 지연 평가를 하려면 선행 로직이 필요하고, 이후 실행되었을 때에도 `take`의 값으로 루프를 중간에 나가기 위해 반복문 내부에서 `limit == list.length`를 체크하는 등 없어도 되는 로직이 추가되어야 하기 때문이다.
+
+Underscore.js의 체인 객체와 Lodash의 체인 객체를 비교해 보면 어떨까? `.value()`를 실행하기 전의 두 객체는 객체의 복잡도나 크기에서 꽤 차이를 보인다.
+
+##### [코드 3-11]
+<script>//```javascript
+// Lodash의 채인 객체
+({
+  __actions__: [],
+  __chain__: true,
+  __index__: 0,
+  __values__: undefined,
+  __wrapped__: {
+    __actions__: [
+      { args: [/*func*/],
+        func: function thru(value, interceptor) {},
+        thisArg: undefined },
+      { args: [/*func*/],
+        func: function thru(value, interceptor) {},
+        thisArg: undefined },
+    ],
+    __dir__: 1,
+    __filtered__: true,
+    __iteratees__: [
+      { iteratee: function (num) {}, type: 1 },
+    ],
+    __takeCount__: 5,
+    __views__: [],
+    __wrapped__: {
+      __actions__: [],
+      __chain__: true,
+      __index__: 0,
+      __values__: undefined,
+      __wrapped__: Array(200)
+    }
+  }
+});
+
+// Underscore.js의 체인 객체
+({ _wrapped: Array(5), _chain: true });
+</script>```
+
+Lodash의 체인 객체는 깊이도 깊고, 기록된 숫자, 객체, 함수 등 내용도 많다. 지연 평가를 위해 실행할 메서드들을 예약해 두고 상황들을 기록해 놓아야 마지막에 Lodash가 판단을 할 수 있기 때문이다. 그러므로 복잡할 수밖에 없다. 반면에 Underscore.js는 `{ _wrapped: Array(5), _chain: true }` 이게 전부다. 모두 즉시 실행하기 때문에 어떤 것도 남겨 둘 필요가 없다.
+
+다시 돌아와서 200개의 값을 가진 `list`로 바꿔서 다시 예제를 돌려보자.
+
+
+##### [코드 3-12] 200개로 재시도
+<script>//```javascript
+var list = _.range(200);
+// [0, 1, 2, 3, 4, 5 ... 199]
+
+// Underscore.js
+var _i = 0;
+var result1 =
+  _.chain(list)
+    .filter(function(num) {
+      _i++;
+      return num % 2 == 0;
+    })
+    .take(5)
+    .value();
+console.log(result1, _i);
+// [0, 2, 4, 6, 8] 200 (200번 반복)
+
+// Lodash
+var lodash_i = 0;
+var result2 =
+  lodash.chain(list)
+    .filter(function(num) {
+      lodash_i++;
+      return num % 2 == 0;
+    })
+    .take(5)
+    .value();
+console.log(result2, lodash_i);
+// [0, 2, 4, 6, 8] 9 (9번 반복)
+</script>```
+
+이번에는 Lodash의 지연 평가로 인해 보다 효율적으로 동작했다. 대부분의 상황에서 `predicate`가 200번보다 적게 실행될 것이다. 찾아지는 값들의 개수가 `take`의 수보다 크고, `list`의 앞쪽에 있을수록 비교해서 좋은 성능을 낼 것이다. 물론 효율적이긴 하지만 찾아지는 값들의 개수가 작을수록, 찾아지는 값들이 `list`의 뒤쪽에 있을수록, `take`의 수가 클수록 이득은 적어진다. 만일 찾아지는 값이 한 개도 없거나 `take`의 수보다 한 개라도 적을 때에는 오히려 아무런 분기나 복잡한 로직 없이 즉시 평가되는 경우가 더 나을 것이다.
+
+다시 실무적인 상황을 떠올려 보자. 데이터베이스로부터 데이터를 꺼낼 때는 이미 `limit`를 정해 놓은 경우가 많다. 그리고 그것은 200보다 적은 경우가 훨씬 많을 것이고 이미 `where` 절로 꽤나 좁혀졌을 것이다. 200보다 많은 값을 꺼냈다고 하더라도 그중 선착순 5개만을 필터링해야 하는 경우는 더 적을 것이다. 그러면서 배열 내에 후보군이 꽤 많고, 앞쪽에 주로 몰려 있는 상황은 흔하지 않다. 적어도 필자의 경우는 그렇다.
+
+Lodash의 경우 `.value()`를 실행하기 전에 체인 객체를 변경해 나가는 별도의 로직과 객체 생성 등의 선행 비용이 필요하다. 이 비용들은 지연 평가가 필요하지 않거나, 동작하지 않을 때도 무조건 수행되어야 한다. 체인의 메서드는 런타임에서 순차적으로 실행되므로 `take`가 있을지 없을지를 Lodash가 미리 알 수 없기 때문이다.
+
+그래도 filter의 성능을 특정 상황에서만큼은 높이지 않았는가? 그건 맞다. 하지만 이 해결책을 사용하려면 반드시 체인 방식으로만 코딩해야 한다. 지연 평가를 원하지 않을 때도 체인 객체는 복잡해져야 하고 그것을 풀어낼 라이브러리의 내부 코드도 복잡해져야 한다. 그런 것에 비해 n개를 채웠을 때 루프를 멈추는 로직은 라이브러리에 의존해야 할 만큼 어렵지 않다. `_.find`를 통해서도 루프를 멈추는 로직을 쉽게 만들 수 있다.
+
+##### [코드 3-13]
+<script>//```javascript
+// list2.push의 결과는 list2.length 이다.
+var list2 = [];
+var limit = 5;
+_.find(list, function(num) {
+  return num % 2 == 0 && list2.push(num) == limit;
+});
+console.log(list2);
+// [0, 2, 4, 6, 8], (9번 반복)
+</script>```
+
+`_.find` 함수는 1장에서도 보았듯이 `predicate`가 `true`를 리턴할 때 `for`문을 빠져나오도록 되어 있다. 위 상황에서는 `num % 2 == 0`일 때마다 `list2`에 값을 `push`하고, 그 결과인 `list2.length`와 `limit`를 비교한다. `limit`와 같아지면 `true`가 되고 루프는 9번째에서 멈추게 된다. 그때까지 모인 `list2`를 찍어 보면 원하는 결과가 나온다.
+
+위와 같은 상황이 많다고 판단된다면 `predicate`로 추상화한 후, `_.filter2`라고 이름을 지어 함수로 만들고 필요할 때만 사용하면 된다.
+
+##### [코드 3-14] 중간에 나갈 수 있는 _.filter2
+<script>//```javascript
+_.filter2 = function(data, predicate, limit) {
+  var list2 = [];
+  _.find(data, function(val, key, data) {
+    return predicate(val, key, data) && list2.push(val) == limit;
+  });
+  return list2;
+};
+
+console.log(
+  _.filter2(list, function(num) { return num % 2 == 0; }, 5)
+);
+// [0, 2, 4, 6, 8], (9번 반복)
+</script>```
+
+`limit` 값을 받는 `_.filter2`를 만들었다. 로직은 코드 3-13과 같다. `predicate`의 결과가 `true`일 경우에만 `&&`의 오른쪽 조건부도 실행된다. `predicate`의 결과가 `false`라면 `list`에 `push`도 하지 않고 `limit` 체크도 하지 않을 것이다.
+
+기존 함수나 메서드에 `if`를 추가하면서 마법처럼 모든 상황을 커버하도록 만드는 것도 장점이 있다. 하지만 기존 로직은 그대로 두고 새로운 요구사항에 최적화 된 별도의 함수를 만드는 방식도 장점이 많다. 관점을 큰 규모의 소프트웨어로 옮 겨서 본다면 더욱 그렇다. 많은 곳에서 사용하는 함수 하나를 크게 만드는 것보다, 세밀하게 나누어진 함수들을 조합하는 것이 성능과 안정성면에서 좋다.
+
+`_.filter2`는 `_.filter`와 `_.take` 두 가지 함수의 기능을 합성하여 내부적으로 평가 시점을 최적화한 함수다. 이와 비슷한 사례로 Dr. Axel Rauschmayer의 블로그에 소개된 `flatMap` 함수(http://2ality.com/2017/04/flatmap.html)가 있다. `flatMap`은 `_.map`을 한 결과에 `_.flatten`을 한 것과 같다. `flatMap`은 두 가지 함수가 해야 할 일을 하나의 함수에 합성해 두어서 최적화된 평가를 한다.
+
+코딩을 하다 보면 함수나 메서드를 실행하기 이전에 이미 원하는 로직이 정해져 있는 경우가 많다. 개인적으로는 그 로직을 함수나 메서드 안쪽으로 집어넣어 `if`로 분기하는 것보다 밖에서 함수를 고르는 것을 선호한다.
+
+***
+##### 참고
+Underscore.js의 스타일대로 `context`를 마지막 인자로 받고 싶다면 다음 코드처럼 `bind`를 사용하면 된다. `context`를 받아 `bind`를 통해 `predicate`의 `this`를 정해주었다. `context`가 넘어오지 않으면 `this`는 `window` 혹은 `global` 이거나 `predicate`가 미리 가지고 있는 `this`일 것이다.
+
+<script>//```javascript
+_.filter2 = function(data, predicate, limit, context) {
+  if (context) predicate = predicate.bind(context);
+  var list2 = [];
+  _.find(data, function(val, key, data) {
+    return predicate(val, key, data) && list2.push(val) == limit;
+  });
+  return list2;
+};
+</script>```
+
+##### 참고
+Underscore.js의 체인 안에서도 `_.filter2` 등의 커스텀 함수를 사용하고 싶다면 `_.filter2 = func...`처럼 정의해 둔 후, `_.mixin(_)`을 한 번 실행해 주면 된다.
+
+<script>//```javascript
+_.mixin(_);
+
+_.chain(list)
+  .filter2(function(num) { return num % 2 == 0; }, 5)
+  .value();
+// [0, 2, 4, 6, 8]
+</script>```
+***
+
+## 3.1.4 지연 평가 2 (map->map->map)
+
+다음은 `map`과 같은 함수를 연속적으로 사용할 때 Lodash가 지연 평가 기법으로 성능을 개선해주는 예제다.
+
+##### [코드 3-15] 연속으로 map 사용
+<script>//```javascript
+function mul10(num) { return num * 10 }
+function sub10(num) { return num - 10 }
+function square(num) { return num * num }
+
+// Underscore.js
+var list = [1, 2, 3, 4, 5];
+var result2 =
+  _.chain(list)
+    .map(mul10)
+    .map(sub10)
+    .map(square)
+    .value();
+
+console.log(result2);
+
+// Lodash
+var list = [1, 2, 3, 4, 5];
+var result1 =
+  lodash.chain(list)
+    .map(mul10)
+    .map(sub10)
+    .map(square)
+    .value();
+
+console.log(result1);
+</script>```
+
+두 코드는 결과는 같지만 내부적으로는 다르게 동작한다. Underscore.js의 경우는 루프를 15번 돌고 새로운 `Array` 객체가 3번 생성되며 `push`는 총 15번 일어난다. Lodash의 경우는 루프를 총 5번 돌고 내부에서 새로운 `Array` 객체도 1번 생성되며 `push`도 총 5번 일어난다. 이렇게 하면서도 동일한 결과를 만든다. 논리적으로는 3배 이상의 성능 차이가 있다. 어떻게 Lodash는 루프를 5번만 돌 수 있을까? Underscore.js와 Lodash를 절차지향적으로 표현하자면 아래와 같다.
+
+##### [코드 3-16]
+<script>//```javascript
+// Underscore.js
+var temp1 = [];
+for(var i = 0; i < list.length; i++) {
+  temp1.push(mul10(list[i]));
+}
+
+var temp2 = [];
+for(i = 0; i < temp1.length; i++) {
+  temp2.push(sub10(temp1[i]));
+}
+
+var temp3 = [];
+for(i = 0; i < temp3.length; i++) {
+  temp3.push(square(temp2[i]));
+}
+
+// Lodash
+var temp = [];
+for(var i = 0; i < list.length; i++) {
+  temp.push(square(sub10(mul10(list[i]))));
+}
+</script>```
+
+Lodash는 `map`을 통해 함수들을 받아두었다가 마지막에 `commit` 혹은 `value`로 실행될 때, 받아둔 함수들을 한 번의 for 문에서 연속 실행되도록 한다. `map`과 같은 함수는 어차피 1:1로 매핑하여 결과를 만들기 때문에, 로직의 특성상 위와 같이 합성해도 동일한 결과를 만들 수 있다. 이 같은 특성을 응용해 한 번의 for 문으로 동작하도록 해준 점은 아주 멋지다.
+
+그러나 이 같은 일을 위해 지연 평가나 체인 객체는 꼭 필요하지는 않다. 실은 훨씬 간단한 방법이 있다. 아래를 보자.
+
+##### [코드 3-17]
+<script>//```javascript
+_.map(list, function(num) {
+  return square(sub10(mul10(num)));
+});
+// [0, 100, 400, 900, 1600]
+</script>```
+
+바로 개발자가 직접 3개의 함수를 연속적으로 실행해 주면 된다. 애초에 `map`을 3번 해야 할 이유가 없었다. 코드 3-17처럼 작성한 코드의 성능을 Lodash의 지연 평가로는 절대 따라갈 수 없다. Lodash의 지연 평가를 위해 내부적으로 함수를 모아 두는 배열을 만들고, 모아 둔 함수 배열을 조회하면서 순차적으로 결과를 꺼내 다음 함수에게 전달하는 로직이 추가되어야 한다. 결과적으로 루프를 돈 횟수는 동일해진다. 코드 3-17이 성능적으로도 함수형적인 관점에서도 낫다.
+
+`square, sub10, mul10`이 익명 함수라면 Lodash의 방식이 코딩하기 편하지 않냐고 할 수 있다. Underscore.js에는 이미 이런 아이디어도 있었다.
+
+##### [코드 3-18]
+<script>//```javascript
+_.map(list, _.compose(square, sub10, mul10));
+// [0, 100, 400, 900, 1600]
+
+_.map(list, _.compose(
+  function(num) { return num * num },
+  function(num) { return num - 10 },
+  function(num) { return num * 10 }));
+// [0, 100, 400, 900, 1600]
+
+// 화살표 함수
+_.map(list, num => square(sub10(mul10(num))));
+</script>```
+
+지금까지 `filter`와 `map`과 관련된 지연 평가 사례를 살펴보았다. Lodash의 성능 개선에 대한 첫 번째 사례와 두 번째 사례 모두 '지연 평가'라는 함수형 용어가 사용되었는데 사실 체인 방식을 통한 Lodash의 지연 평가는 그다지 ‘함수형 프로그래밍’적이지 않고 성능면에서 이득을 얻기도 힘들다.
+
+## 3.1.5 지연 실행
+
+Underscore의 체인 객체는 메서드를 실행하는 즉시 내부의 값을 변경한다. Lodash의 체인 객체는 최종적으로 `.value()` 등을 실행할 때까지는 체인에 쌓인 함수들이 실행되지 않는다. 원하는 시점 이후로 실행을 지연하는 상황들에 대해 확인해 보자.
+
+##### [코드 3-19]
+<script>//```javascript
+var users = [
+  { id: 1, name: "ID", age: 32, team_id: 2 },
+  { id: 2, name: "HA", age: 25, team_id: 2 },
+  { id: 3, name: "BJ", age: 32, team_id: 1 },
+  { id: 4, name: "PJ", age: 28, team_id: 1 },
+  { id: 5, name: "JE", age: 27, team_id: 2 },
+  { id: 6, name: "JM", age: 32, team_id: 1 },
+  { id: 7, name: "HI", age: 24, team_id: 2 }
+];
+
+var me = { id: 3, name: "BJ", age: 32 };
+
+// Underscore.js
+var query = _.chain(users)
+  .filter(function(user) {
+    return user.age == me.age;
+  })
+  .reject(function(user) {
+    return user.id == me.id;
+  });
+// 아래로 가기전 filter와 reject까지 이미 실행이 되어 있음
+
+$.get('/my_team_id', function(team_id) {
+  query
+    .filter(function(user) {
+      return user.team_id == team_id;
+    })
+    .value();
+  // [{ id: 6, name: "JM", age: 32, team_id: 1 }]
+});
+
+// Lodash
+var query = lodash.chain(users)
+  .filter(function(user) {
+    return user.age == me.age;
+  })
+  .reject(function(user) {
+    return user.id == me.id;
+  });
+// value()를 실행하기전까지는 아무것도 미리 실행이 되어있지 않고 체인 내부에 예약 해둠
+
+$.get('/my_team_id', function(team_id) {
+  query
+    .filter(function(user) {
+      return user.team_id == team_id;
+    })
+    .value();
+  // [{ id: 6, name: "JM", age: 32, team_id: 1 }]
+});
+</script>```
+
+이러한 기법들은 하는 일 자체의 성능 개선보다는 최대한 실행을 미뤄 초기 로딩 속도를 개선하거나 반대로 미리 일정 부분까지 최대한 실행을 해서 나중에 실행될 때 빠르게 실행되도록 하기 위해 사용한다. 위 예제에서 Lodash의 경우는 전자에 해당하고 Underscore.js는 후자에 해당한다.
+
+예제에서 Underscore.js는 $.get 이전에 이미 filter와 reject가 실행되어 있다. 따라서 $.get 이전 상황에서는 느리겠지만 $.get의 결과가 오고 난 후에는 마지막 filter만 실행되면 되기 때문에 이후 상황에서 빠르다. Lodash는 $.get 이전에는 앞으로 실행될 준비만 되어 있어 $.get 이전 상황에서 빠르고 $.get 을 다녀오고 난 이후에는 filter, reject, filter가 모두 실행되므로 느리다. 이것은 무엇이 더 나은가의 문제가 아니라 상황에 맞게 선택해야 하는 부분이다.
+
+위와 같은 코드도 단순하게 함수로만 한 번 감싸주는 식으로 전자든 후자든 필요에 따라 만들 수 있으며 그것이 가장 빠를 것이다. 필자는 두 라이브러리의 `_.chain` 모두 '지연 실행'를 위한 별도의 의도적인 구현이 있었다고 보지 않는다. 그저 각 라이브러리의 `_.chain`의 동작 방식의 차이로 보인다. Lodash는 지연 평가를 해야 하니 어차피 미리 실행할 수 없지 않은가. 의도했든 아니든 이 '동작 방식의 차이'가 두 라이브러리 중에 무엇이 더 나은지에 대한 판단 근거가 될 수는 없다.
+
+***
+##### 참고
+사실 Lodash의 경우 `$.get` 이전 상황에 아무 일도 하지 않는 것은 아니다. 위 예제에서도 체인 객체 생성 및 관리 로직으로 인해 (filter->take 등의 사례들과 같은 이유로) 효과가 없는 상황이 더 많을 것이다. 오히려 `$.get`이전과 `$.get`이후 모두 불필요한 로직이 생겨난다. 단순하게 함수를 한 번 감싸는 것이 실제적인 성능상의 이점도 만들 수 있고 이해하기도 쉽다. 쿼리를 만들어두고자 한다면, 미리 시작 값을 전달해둬야 하는 체인보다는 이후에 다룰 파이프라인이나 부분 적용이 적합하다. 함수로 감싸거나 파이프라인을 만드는 방식은 해당 쿼리를 새로운 값으로도 출발 시킬 수 있다. Lodash의 체인은 출발 인자를 바꿔서는 안 되는 것에 가깝다. 바꾸려면 상태를 변경해야 하고 Lodash 체인의 출발 객체의 상태를 바꾸는 코드는 매우 큰 문제를 야기할 가능성이 높고 복잡하다. Lodash의 체인에 대해 지연 실행(Deferred Execution)이라는 용어를 사용하는 것은 잘 맞지 않는 것 같다.
+***
+
+## 3.1.6 함수형 프로그래밍 관점에서의 each
+
+Underscore.js의 `each`와 Lodash의 `each`의 문서의 예제를 보면 동일하게 동작한다. 하지만 사실은 약간 다른 점이 있다. Underscore.js의 `each`는 중간에 루프를 멈출 수 없고, Lodash의 `each`는 중간에 루프를 멈출 수 있다.
+
+##### [코드 3-20] 두 each의 차이
+<script>//```javascript
+// Underscore.js
+var _i = 0;
+_.each([1,2,3,4,5], function(v) {
+  _i++;
+  if (v < 3) console.log(v);
+});
+// 1
+// 2
+console.log(_i, '번 반복');
+// 5 번 반복
+
+// Lodash
+var lodash_i = 0;
+lodash.each([1,2,3,4,5], function(v) {
+  lodash_i++;
+  console.log(v);
+  return v < 2;
+});
+// 1
+// 2
+console.log(lodash_i, '번 반복');
+// 2 번 반복
+</script>```
+
+Underscore.js의 `each`는 `iteratee` 함수의 결과가 무엇이든 간에 1,000번, 20,000번 무조건 돈다. Lodash의 `each`는 `iteratee` 함수가 `false`를 리턴할 경우 루프를 멈춘다. `each`를 `for`의 대안으로 본다면 `break`가 되는 Lodash의 `each`가 더 실용적이라고 볼 수 있겠다. 성능적인 관점으로 보아도 Lodash의 `each`가 더 좋다고 볼 수 있다. 하지만 필자는 Underscore.js의 `each`가 더 실용적이고 좋다고 생각한다.
+
+Underscore.js의 `each`는 `break`를 못하는 함수가 아니라 안 하는 함수다. `iteratee`의 리턴값이 무엇이든 간에 Underscore.js의 `each`는 루프를 무조건 끝 까지 도는 함수라고 해석하면 가치 판단이 달라진다. Lodash의 `each`를 ‘`false`를 리턴하면 멈추니까 유용하네.’라고 볼 수도 있지만 ‘`false`가 리턴될 수 있는 `iteratee`와 함께 쓸 경우 의도치 않게 루프가 멈출 수 있으니 주의해야겠네.’라고 볼 수도 있다. Lodash를 쓰면서도 `for`를 직접 작성해야 하거나 반드시 익명 함수와 함께 사용하여 `false`가 리턴되지 않도록 보호해야 한다면 불편할 것이다. 무조 건 값을 리턴하는 화살표 함수와의 사용도 주의해야 한다.
+
+다음은 배열 안에 있는 값이 `true`로 변환되는지 `false`로 변환되는지를 출력한 후 그 결과를 리턴하는 함수를 `each` 등의 보조 함수로 사용하는 예제이다. 실전에서 `printBool`과 동일한 함수를 사용할 일은 없겠지만 결과값이 `boolean`인 함수를 사용할 가능성은 얼마든지 있다. 예를 들면 받은 값을 적용 후 그대로 리턴하는 메서드, `false`를 리턴하는 함수, 연산자 등이 있다. 다음을 보자.
+
+##### [코드 3-20]
+<script>//```javascript
+function printBool(val) {
+  var result = Boolean(val);
+  console.log(result);
+  return result;
+}
+
+/* Underscore */
+_.each([1, 2, 0, 20, 50], printBool);
+// true
+// true
+// false
+// true
+// true
+
+/* Lodash */
+lodash.each([1, 2, 0, 20, 50], printBool);
+// true
+// true
+// false <---- 여기서 멈춰버림
+
+lodash.map([1, 2, 0, 20, 50], printBool);
+// true
+// true
+// false
+// true
+// true
+
+lodash.each([1, 2, 0, 20, 50], function(v) {
+  printBool(v);
+});
+// true
+// true
+// false
+// true
+// true
+
+lodash.each([1, 2, 0, 20, 50], v => printBool(v));
+// true
+// true
+// false <---- 여기서 멈춰버림
+</script>```
+
+
+배열의 모든 값을 화면에 출력해야 하는 상황이라면 Lodash의 `each`는 원하는 대로 동작하지 않은 것이 된다. 만일 이것을 위해 `_.map`을 사용한다면 필요 없는 새로운 `Array`객체가 하나 생성될 것이고 `push`를 하는 로직이 추가될 것이다. Lodash에서 위 상황을 만족시키려면 익명 함수를 하나 생성해야 하거나 `for`를 사용해야 한다. 익명 함수로 한 줄짜리 화살표 함수를 사용하면 `false`을 리턴할 수 있어 위험하다.
+
+그럼 반대로 Underscore.js를 사용하고 있는 경우에는 `break`가 필요한 상황에 `for`를 사용해야 하지 않을까? 그렇지 않다. 루프를 중간에 나가고 싶은 상황일 때는 `_.find`, `_.some`, `_.every` 등을 사용하면 된다. 그중 `_.every`는 중간에 `false`를 만나면 루프를 나간다. 성능이 Lodash의 `each` 보다 더 느려지는 것도 아니다.
+
+##### [코드 3-22]
+<script>//```javascript
+_.every([1, 2, 0, 20, 50], printBool);
+// true
+// true
+// false
+
+_.some([1, 2, 0, 20, 50], printBool);
+// true
+</script>```
+
+`false`를 만났을 때 나가고 싶으면 `_.every`를, `true`를 만났을 때 나가고 싶다면 `_.some`이나 `_.find`를 쓰면 된다. `_.every`, `_.some`, `_.find` 등 모두 새로운 `Array`를 생성하지 않으며, 중간에 나갈 수 있는 함수다.
+
+함수형 프로그래밍에서는 함수를, 값을 리턴 받기 위한 유틸로만 보거나 중복을 제거하기 위한 방법만으로 보지 않는다. `for`나 `if` 등의 로직을 대신하는 고차 함수를 만들고 특정 부분을 `iteratee`나 `predicate`으로 로직을 완성하는 식으로 코딩을 해나간다. 때문에 함수형 프로그래밍에서 함수를 선택한다는 것은 로직을 선택한다는 의미도 포함한다.
+
+#### 1. 결과에만 집중한 해석
+- each: `for`를 대체
+- map: `iteratee`가 리턴한 값들의 배열을 리턴
+- find: 값 찾기
+- findIndex: index 찾기
+- some: || 대체
+- every: && 대체
+
+#### 2. 함수형 프로그래밍적인 해석
+- each: 무조건 끝까지 돌면서 내부를 들여다 보기만 하는 함수
+- map: 무조건 끝까지 돌면서 내부를 들여다 본 후 새로운 배열을 만드는 함수
+- find: 돌다가 특정 조건으로 찾아지는 값을 리턴하면서 루프를 나가는 함수
+- findIndex: 돌다가 특정 조건을 만족하는 번째의 index를 리턴하면서 루프를 나가는 함수
+- some: 돌다가 긍정적인 값을 만나면 `true`를 리턴하면서 루프를 나가는 함수
+- every: 돌다가 부정적인 값을 만나면 `false`를 리턴하고, 모두 `true`일 경우는 루프를 모두 채운 후 `true`를 리턴하는 함수
+
+함수형적으로 보면 Lodash의 `each`는 내부를 들여다보면서 `false`가 리턴되지 않는다면 끝까지 루프를 도는 함수라고 해석할 수 있다. 그렇다는 얘기는 Lodash에는 무조건 끝까지 돌면서 내부를 들여다보기만 하는 함수는 없다는 것이다. 실용적인 관점으로 보면 `_.some`, `_.every`, `_.find` 등이 있기에 무조건 루프를 채우는 함수가 하나 있는 편이 더 나은 듯 하다. 물론 `_.every`는 부정적인 값에 대해 조사하는 방법이 `val === false`가 아니고 `!val` 이므로 Lodash의 `each`와 다르다. 리턴 값도 다르다. 하지만 보조 함수에서 완전한 `false`인지도 체크할 수 있으므로 Lodash의 `each`와 동일하게 사용할 수 있다. 추가로 `_.every`, `_.some` 등은 `true`아니면 `false`를 리턴하므로 함수 종료 시에 루프를 모두 돌았는지 아닌지도 판단 할 수 있다.
+
+함수형 프로그래밍에서는 조사 방법, 리턴 값, 루프를 나갈 수 있는지, 없는지 등의 작은 차이도 매우 중요하다. 함수들의 조합으로 로직을 만들기 때문이다. Underscore.js의 `each`와 Lodash의 `each`는 약간 다르며, 약간 다른 함수 모두가 필요할 수도 있다. Underscore.js를 사용하든 Lodash를 사용하든 필요하다면 `_.filter2`의 사례처럼 `_.each2`로 만들면 된다. 단, Underscore.js나 Lodash의 `each`를 직접 고치는 것은 위험하다.
+
+어떤 `each`가 더 좋은 `each`인지에 대해 이야기하는 것이 아니다. `break`를 할 수 있는 Lodash의 `each`가 Underscore.js의 `each`의 '개선 버전'이 아니라는 것을 이야기하려는 것이다. 그저 두 라이브러리는 `each`에 대해 서로 다른 로직을 선택했을 뿐이다. 개인적으로는 `_.some`, `_.every` 등이 있으니 Underscore.js의 선택에 손을 들어주고 싶다. 설마 Underscore.js가 `filter`나 `each`에서 `break`를 하는 것이 어려워서 못했을까. `each`의 `break` 가능 여부가 어떤 라이브러리가 더 나은지에 대한 판단 기준이 될 수는 없다.
+
+## 3.1.7 지원 환경, 용량, 추가 기능 비교
+
+2016년을 기준으로 Lodash는 IE9 미만 버전 지원을 종료했다. (그러나 아직은 Lodash 코드에서 IE9 미만을 지원하는 코드가 모두 제거되진 않아서 성능상 이득은 적다.) Underscore.js는 IE9 미만 버전에서도 잘 동작한다. Underscore.js와 Lodash는 Native Helpers가 있으면 이것을 우선적으로 사용하고, 없을 때는 다른 방식으로 대체하도록 구현되어 있다. Underscore.js는 1.8.3 버전 이후 업데이트가 되지 않고 있으며, Lodash는 꾸준히 업데이트되고 있다. 따라서 최신 브라우저나 최신 기술과의 협력면에서는 Lodash가 더 좋다.
+
+Lodash의 용량은 71kb, Underscore.js는 16kb다. 또한 Lodash의 함수 개수는 Underscore.js보다 약 200개 정도 더 많다. 하지만 실용성이 낮은 기능을 하는 함수가 많이 포함되어 있다. 핵심 기능만 모은 가벼운 버전(13kb)의 Lodash도 있으며, 함수 개수는 약 60개 정도이다. Underscore-contrib에는 function.iterators 섹션 같은 함수형 패러다임적인 기능들이 좀 더 많은 편이고 Lodash는 유틸성 함수들이 좀 더 많은 편이다.
+
+Lodash에만 있는 유용한 기능들도 분명히 있다. 그중 path를 꼽고 싶다. Lodash에서 path는 함수는 아니다. `{ a: { b: [ { c: 1 } ] } }`와 같이 중첩된 객체의 내부 값을 가리키는 `"a.b[0].c"`와 같은 문자열을 말한다. 이런 스타일의 문자열을 Lodash에서는 path라고 부르고 이런 path를 인자로 받는 함수들이 몇 개 있다. 아래와 같은 함수들이다.
+
+- _.has
+- _.property
+- _.set
+- _.setWith
+- _.unset
+- _.update
+_ _.updateWith
+
+위 함수들은 깊은 객체의 값을 꺼내거나 쉽게 변경하기 위한 도구들이다. 이런 함수들은 꽤 유용하다. 궁금하다면 Lodash 사이트에서 함수들을 확인해 보길 바란다. 여기서는 위에서 소개한 함수들을 다루진 않으며 6장에서 동일한 목적을 가진 더 나은 해법들을 다룬다.
+
+***
+##### 참고
+Underscore-contrib에도 path가 있기는 하지만 Lodash의 path가 여러 함수에서 응용되며 사용하기도 좋다.
+***
+
+## 3.1.8 Underscore.js Lodash 비교 정리
+
+앞서 Underscore.js vs. Lodash라는 제목을 달았지만 무엇이 더 나은지 결론을 내기 위한 것은 아니다. 두 라이브러리의 특징을 정리해 보면 다음과 같다.
+
+1. 지연 평가, 지연 실행, 성능이 Underscore.js 대신 Lodash를 써야 하는 특별한 이유는 아니다.
+2. 'Lodash가 훨씬 빠르고 강력하다.'라고 단정지어 말할 수는 없다.
+3. Underscore.js 만이 가진 특별한 기능은 없지만 대부분의 콘셉트는 Underscore.js가 제시했거나 자바스크립트로 가져왔다.
+4. Lodash는 `for` 대신 `while (i--)`을 사용한 최적화와 적절한 기능 축소, 함수별로 반복문을 직접 사용하는 것 등으로 얻은 성능적 이점이 있다.
+5. Lodash 사용하면서 지연 평가의 이득을 보려면 반드시 `_.chain`을 사용해야 한다. 만일 체인 방식을 사용하지 않거나 200개 이상의 배열을 사용하지 않거나 `take`를 사용하지 않는다면 지연 평가를 통한 성능적 이점은 없다. Lodash에서 `_.chain == _`다.
+6. 최신 환경에 대한 지원, 지속적인 업데이트면에서 Lodash가 낫다.
+
+현재까지는 두 가지 라이브러리에 큰 차이가 없다. Lodash가 Underscore.js의 API와 콘셉트를 대부분 그대로 가져왔고 개선 및 확장을 목적으로 만들어졌으니 이는 당연하다. Lodash가 나은 점도 분명히 많이 있지만 아주 특별하지는 않다. Lodash는 계속 업데이트 되고 있지만 아직 Lodash만의 특별한 콘셉트나 기능은 나오지 않았다고 본다. 앞으로 Lodash가 함수형 자바스크립트에 더 많은 영향을 끼치길 기대한다.
+
+## 3.1.9 Underscore.js를 만드는 이유
+
+3.1절에서 Underscore.js를 소개하면서 가볍게 사용해 보았다. Lodash와 비교도 해 보았다. 둘의 기능과 콘셉트의 미세한 차이를 확인해 보면서 함수형 자바스크립트에 대한 여러 가지 생각을 열어 놓았다. 열린 이야기를 여기서 모두 마무리하긴 어려울 것 같다. 그래도 정리해 보자면 Underscore.js는 개척되지 않았던 함수형 자바스크립트에 있어서 굉장히 실제적인 탐구와 방향을 제시했다. 제시 된 내용들은 다양한 오픈 소스에서 직간접적으로 사용되며 많은 영향을 끼쳤다. Lodash도 지연 평가 함수적 콘셉트를 보다 직접적인 기능으로 자바스크립트에 적용했다.
+
+MVC 패턴의 자바스크립트 프레임워크들이 마구 쏟아져 나오면서 클래스가 없던 자바스크립트에서 객체지향에 대한 탐구가 많이 진행되었고, prototype 스타일의 언어에 대한 고찰도 더욱 이루어졌다. ‘객체지향 자바스크립트’의 발전에 비해서는 아직 부족하지만 Underscore.js, Lodash, Promise 등의 구현체들은 ‘함수형 자바스크립트’의 구름을 꽤나 걷어내고 있다. 하지만 마법 같지 않은 점 때문일까? 아직은 이들이 지닌 우아함이나 실용성이 잘 드러나지 못하는 것 같다.
+
+3.2절부터는 Underscore.js의 대표적인 함수들을 직접 구현해 보면서 그 안에 숨은 이야기를 더 들여다보고자 한다. 이를 통해 함수형 자바스크립트에 대한 많은 아이디어들을 확인할 수 있을 것이다. 3장의 제목이 ‘Underscore.js 직접 만들기’인 이유는 Underscore.js가 Lodash보다 뛰어나기 때문이 아니라 핵심 콘셉트와 API를 Underscore.js가 제시했기 때문이다. 자, 이제 그 함수들을 만들어 보자.
+
+</body>
+</html>

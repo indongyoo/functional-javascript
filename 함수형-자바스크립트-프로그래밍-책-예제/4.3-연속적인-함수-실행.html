@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="underscore.js"></script>
+</head>
+<body>
+
+## 4.3.1 체인의 아쉬운 점
+
+체인은 메서드를 연속적으로 실행하면서 객체의 상태를 변경해 나가는 기법이다. 체인은 표현력이 좋고 실행 순서를 눈으로 따라가기에도 좋다. 체인 방식은 많은 장점을 가지고 있지만 체인 방식으로만 모든 로직을 구현하기에는 다소 불편한 점이 있다. 무엇 때문일까?
+
+체인 방식은 체인 객체가 가지고 있는 메서드만 이용할 수 있기 때문에 체인 객체와 연관 없는 로직이나 다른 재료를 중간에 섞어 사용하기 어렵다. 정해진 메서드나 규격에 맞춰서 사용해야 하기 때문에 인자를 자유롭게 사용하기 어렵고 다양한 로직을 만들기도 어렵다. 따라서 결과를 완성해 나가는 과정에서 체인을 끊어야 하는 경우가 많다. 끊어야 한다는 점 자체는 큰 문제가 아니지만 끊게 되었을 때 체인 방식의 이점도 감소되는 경우가 있다. 예를 들면 비동기 상황 등에서 그럴 수 있다.
+
+체인 방식은 사용하기는 쉽지만 잘 만들어 두기는 어렵다. `this`만 리턴하면 되는데 뭐가 어렵냐고 할 수 있지만, 가만히 생각해 보면 잘 쓰이는 체인 API는 그렇게 많지 않다. 잘 쓰이는 체인 API가 되려면 우선 체인 패턴과 잘 어울리는 주제여야 한다. 이를테면 DOM과 같이 지속적으로 존재하고 변화의 범위가 많은 주제는 체인과 잘 어울린다. jQuery의 체인이 좋은 사례 중 하나다. 주제도 잘 맞아야 하지만 기본적으로 설계 자체가 쉽지 않다. 내부에서 상태를 관리하며 메서드들이 서로 합을 잘 이루어 동작해 나가도록 설계를 잘 해 두는 일은 생각보다 쉽지 않다.
+
+체인 방식은 객체가 생성되어야만 메서드를 사용할 수 있기 때문에 반드시 생성 단계를 거쳐야 한다. 그리고 `this` 등의 상태와 흐름과 깊이에 의존하기 때문에 언제 어디서나 아무 때나 사용이 가능한 순수 함수보다는 접근성면에서 좀 불편하다.
+
+***
+##### 참고
+Promise의 체인 메서드는 로직을 쌓아 나가는 역할만 하며, 나열한 보조 함수들을 통해 다양한 로직을 만드는 것이 목적이다. Promise에서의 체인 객체 자체는 아무런 내용을 갖지 않으므로 위 내용하고는 연관성이 적다.
+***
+
+## 4.3 _.compose의 아쉬운 점
+
+`_.compose` 함수는 디자인 패턴과 같은 특별한 개념이나 지식 없이도, 바로 코딩 및 설계가 가능하다는 장점이 있다. 인자와 결과만을 생각하면서 작은 함수들을 조합하면 된다. 몇 가지 아쉬운 점이 있는데 그중 가장 큰 아쉬움은, 함수 실행의 순서가 오른쪽에서부터 왼쪽이기 때문에 읽기가 어렵다는 점이다. 함수 실행을 중첩해서 하는 것과 코드의 표현력이 크게 다를 바가 없고, 기능적으로도 특별히 나을 점이 없다.
+
+## 4.3.3 파이프라인
+
+파이프라인은 `_.compose`의 장점을 그대로 가지고 있다. `_.compose`와 기본적인 사용법은 동일하다. 다만, 함수 실행 방향은 왼쪽에서부터 오른쪽이다. 왼쪽에서부터 오른쪽, 위에서부터 아래로 표현되어 코드를 읽기 쉽다. 또한 체인과 달리 아무 함수나 사용할 수 있어 자유도가 높다. 여기서는 이런 파이프라인의 장점들을 천천히 살펴볼 것이다. 파이프라인을 구현한 함수도 뜯어보고, 사용해 보고, 발전시켜 보면서 파이프라인 패턴의 이점들을 확인해 보자.
+
+다음은 함수형 자바스크립트 저자인 마이클 포거스(Michael Fogus)가 만든 `_.pipeline` 함수다. `_.pipeline`은 인자로 받은 함수들을 실행하면서 함수의 실행 결과를 다음 함수의 인자로 계속 넘겨주다가, 마지막 함수의 결과를 리턴하는 함수를 리턴하는 고차 함수다. _.pipeline은 Underscore-contrib에 있다. Underscore-contrib는 http://documentcloud.github.io/underscore-contrib/에서 볼 수 있고 http://underscorejs.org의 왼쪽 상단 3번째 메뉴를 통해서도 방문할 수 있다.
+
+##### [코드 4-16] 마이클 포거스의 _.pipeline
+<script>//```javascript
+_.pipeline = function() {
+  var funs = arguments; // (1) 함수들
+
+  return function(seed) {  // (2) 첫 인자
+    return _.reduce(funs,
+      function(l, r) { return r(l); }, // (4) 모든 함수들을 연속적으로 실행
+      seed); // (3) 첫 인자 전달
+  };
+};
+
+var div_square = _.pipeline(
+  function(a) {
+    return a / 2;
+  },
+  function(a) {
+    return a * a;
+  });
+
+console.log(div_square(6));
+// 9
+</script>```
+
+`_.pipeline`은 `_.reduce`를 이용해서 만들어졌다. `_.reduce`는 정말 강력한 함수다. 3장에서 `_.reduce`는 가지고 있는 데이터들로 다른 데이터를 만들고자 할 때 사용한다고 했다. 위 상황에서 가지고 있는 데이터는 함수들이고 만들고자 하는 데이터는 최초 인자로부터 시작해 모든 함수를 통과한 마지막 결과이다.
+
+(1) `arguments`를 지역 변수 `funs`에 담았다.
+(2) `funs`를 기억하는 함수를 리턴한다.
+(3) 리턴된 함수가 나중에 실행되면 받은 인자인 `seed`를 `_.reduce`의 마지막 인자로 넘겨주어 `seed`는 최초의 `l`이 된다.
+(4) 예측해 보건대 `l`은 left고 `r`은 right인 듯하다. 오른쪽 함수 `r`를 실행하며 왼쪽 함수의 결과 `l`을 넘겨주고 있다. `funs`의 개수만큼 반복되며 마지막 함수의 결과가 곧 `_.pipeline`으로 만든 함수의 결과가 된다.
+
+`_.pipeline`으로 만들어진 `div_square`를 실행할 때 넘긴 `6`은 첫 번째 익명 함수의 인자가 된다. 2로 나눈 결과는 두 번째 함수의 인자가 되고 제곱한 결과가 최종 결과가 된다. 마치 컨테이너 벨트를 통과하며 일을 하나씩 처리하고 내려오는 모습 같다.
+
+3장에서 `_.reduce`는 개발자에게 문제의 복잡성을 줄여 주고 구현해야 할 일에 만 집중할 수 있게 해 줘서 복잡한 로직을 쉽게 만들 수 있게 도와 준다고 했었다. 앞 코드는 그런 사례를 보여 준다.
+
+코드 4-17은 `_.pipeline`을 `for`문 만으로 구현한 케이스와 마이클 포거스의 구현, 그리고 `_.partial`을 함께 사용한 버전을 확인할 수 있는 예제다. 비교해 보자.
+
+##### [코드 4-17]
+<script>//```javascript
+// for - 꽤 복잡하다.
+_.pipeline = function() {
+  var funs = arguments;
+
+  return function(seed) {
+    var l = seed;
+    for (var i = 0; i < funs.length; i++) {
+      var r = funs[i];
+      l = r(l);
+    }
+    return l;
+  }
+};
+
+// 마이클 포거스 - 아름답다.
+_.pipeline = function() {
+  var funs = arguments;
+
+  return function(seed) {
+    return _.reduce(funs, function(l, r) { return r(l); }, seed);
+  };
+};
+
+// _.partial과 함께
+_.pipeline = function() {
+  return _.partial(_.reduce, arguments, function(l, r) { return r(l); });
+};
+</script>```
+
+`_.partial`, `_.reduce`, `arguments`, `익명 함수`로 만들어진 `_.pipeline`과 `_.pipeline`에 넘겨질 함수들까지, 함수를 다양하게 응용하는 기법들이 참 아름답게 느껴진다.
+
+***
+##### 참고
+마이클 포거스(Michael Fogus)는 '함수형 자바스크립트'와 '클로저 프로그래밍의 즐거움'의 저자이다. 마이클 포거스의 자바스크립트 코드는 굉장히 우아하고 정확하다. 군더더기 없이 깔끔하고 자바스크립트의 기능과 타입을 잘 다룬다. 다음 주소에서 그의 자바스크립트 코드와 함수형 자바스크립트에 대한 아이디어를 확인할 수 있다.
+
+- https://github.com/fogus/lemonad
+- https://github.com/documentcloud/underscore-contrib
+
+마이클 포거스는 클로저(Clojure) 커뮤니티에서 활동하고 있고, 클로저(Clojure)와 클로저스크립트(ClojureScript)에 핵심적으로 기여한 기여한 컨트리뷰터이기도 하다. 클로저스크립트(ClojureScript)는 새로운 언어이며, 클로저를 만들면서 얻게 된 경험과 지식을 동원하여 만들어졌다고 한다. 클로저스크립트(ClojureScript)는 클로저와 자바스크립트의 기능을 혼합적으로 지원하고, 최종적으로는 자바스크립트로 컴파일 된다.
+
+- https://clojure.org
+- https://clojurescript.org
+- https://github.com/clojure/clojurescript
+
+필자는 마이클 포거스의 코드와 글을 통해 많은 것을 배웠다.
+***
+
+## 4.3.4 클래스를 대신 하는 파이프라인
+
+`_.pipeline`은 작은 함수들을 모아 큰 함수를 만드는 함수다. 파이프라인은 클래스와 기능적인 면도 개념적인 면도 다르지만 비슷한 역할을 대신할 수 있다. 작은 함수들을 조합하여 큰 함수들을 만들고 함수 조합을 조금씩 변경하거나 추가하면서 새로운 로직을 만들어 갈 수 있다.
+
+회원 가입을 예로 들어 보자. 개인 회원과 기업 회원이 있다고 가정하면, 회원 가입과 관련된 작은 로직들을 작은 함수 단위로 쪼개어 나눈 후 약간 변경하여 조합하거나 더할 수 있고, 뺄 수도 있다. 다음은 개인 회원 가입을 위한 함수와 기업 회원 가입을 위한 함수다.
+
+##### [코드 4-18] 개인 회원 가입과 기업 회원 가입
+<script>//```javascript
+var users = [];
+var companies = [];
+
+function joined_at(attrs) {
+  return _.extend(attrs, { joined_at: new Date() });
+}
+
+function greeting(member) {
+  return member.name + " 회원님은 " + member.id + "번째 회원이십니다. 환영합니다.";
+}
+
+var join_user = _.pipeline(
+  joined_at,
+  function(member) {
+    users.push(member);
+    member.id = users.length;
+    return member;
+  },
+  greeting);
+
+var join_company = _.pipeline(
+  joined_at,
+  function(member) {
+    companies.push(member);
+    member.id = companies.length;
+    return member;
+  },
+  greeting);
+
+console.log( join_user({ name: "ID" }) );
+// ID 회원님은 1번째 회원이십니다. 환영합니다.
+console.log( join_user({ name: "JI" }) );
+// JI 회원님은 2번째 회원이십니다. 환영합니다.
+console.log( join_company({ name: "MARPPLE" }) );
+// MARPPLE 회원님은 1번째 회원이십니다. 환영합니다.
+</script>```
+
+`join_user`와 `join_company`는 두 번째 함수만 다르고 첫 번째와 세 번째 함수는 동일하게 조합 되었다. 위에서부터 내려오면서 가입 날짜를 만들고 서로 다른 배열에 담은 후 인사말을 남기고 있다.
+
+`_.partial`을 함께 이용하면 아래와 같은 표현이 가능하다.
+
+##### [코드 4-19] _.partial과 함께 사용
+<script>//```javascript
+var users = [];
+var companies = [];
+
+function joined_at(attrs) {
+  return _.extend(attrs, { joined_at: new Date() });
+}
+
+function join(table, member) {
+  table.push(member);
+  member.id = table.length;
+  return member;
+}
+
+function greeting(member) {
+  return member.name + " 회원님은 " + member.id + "번째 회원이십니다. 환영합니다.";
+}
+
+var join_user = _.pipeline(
+  joined_at,
+  _.partial(join, users),
+  greeting);
+
+var join_company = _.pipeline(
+  joined_at,
+  _.partial(join, companies),
+  greeting);
+
+console.log( join_user({ name: "ID" }) );
+// ID 회원님은 1번째 회원이십니다. 환영합니다.
+console.log( join_user({ name: "JI" }) );
+// JI 회원님은 2번째 회원이십니다. 환영합니다.
+console.log( join_company({ name: "MARPPLE" }) );
+// MARPPLE 회원님은 1번째 회원이십니다. 환영합니다.
+</script>```
+
+이번에는 `_.partial`을 이용해 `users`에 담을지 `companies`에 담을지를 선택했다. 만일 기업 회원에게만 추가적인 로직이 필요하다면 아래처럼 원하는 위치에 추가하는 식으로 기능을 더하면 된다.
+
+##### [코드 4-20] 로직 더하기
+<script>//```javascript
+var join_company2 = _.pipeline(
+  joined_at,
+  _.partial(join, companies),
+  function() { /*...*/ }, // ex) 기업 회원은 이용료가 있어 결제 관련 코드를 추가
+  greeting);
+</script>```
+
+이런 방식은 로직을 단순하게 한다. 서로 다른 기능을 하지만 조건문이 없다. 각자 자신이 해야 할 일만 순서대로 수행할 뿐이다. 작은 함수는 작성이 쉽고 테스트도 쉬우며 오류도 적기 마련이다. 앞뒤로 받을 인자와 결과만을 생각하면서 문제를 작게 만들면 문제 해결도 쉬워진다. 각각의 함수가 서로의 상태에 의존하지 않는 식으로 조합되면 전체적인 부수 효과도 자연스럽게 줄어든다.
+
+파이프라인은 객체지향의 계층 구조의 상속보다 유연하다. 상속 혹은 조합의 단위가 클래스가 아닌 개별적인 함수들이기에, 필요한 기능들을 여기저기서 자유롭게 가져와 모아 둘 수 있다. 클래스가 계층 구조의 카테고리 같다면 파이프라인은 태그를 하나씩 다는 것과 같다. 견고한 계층 구조는 기획 변경에 대응하기 어렵지만, 파이프라인은 부수고 다시 만들기 쉽고 완성 후에 성능을 개선하기도 쉽다.
+
+## 4.3.5 더 나은 파이프라인, 그리고 Multiple Results
+
+Underscore.js의 `_.pipeline`이나 Lodash의 `_.flow`에는 아쉬운 점이 있다. 인자를 하나만 받을 수 있다는 점이다. 파이프라인에 사용된 내부 함수들 역시 마찬가지다. 파이프라인 내부에서 `function(a, b) { return a + b; }`와 같은 함수는 사용할 수 없다는 얘기다. 물론 객체나 배열에 담아 다음 함수에게 전달할 수도 있겠지만 `function(args) { return args[0] + args[1]; }`과 같은 함수는 파이프라인만을 위한 함수라고 봐야 한다. 클로저나 `_.partial`을 이용해서 인자나 재료를 늘릴 수 있지만 자칫 외부 상황에 의존하는 함수가 될 수 있다.
+
+함수형 자바스크립트는 순수 함수를 많이 사용할수록, 인자들을 적극 활용할수록 강력해진다. 인자는 특히 2~3개를 사용할 때도 많고 개수가 가변적인 경우도 많다. 인자를 2개 이상 필요로 하는 함수들을 파이프라인 사이에 끼워 넣지 못한다는 것은, 곧 파이프라인 사이에 정의된 함수들의 재사용성도 낮아진다는 얘기다.
+
+만일 언어가 Go였다면 함수의 결과로 Multiple Results를 리턴할 수 있고 파이프라인 중간중간에 여러 개의 인자를 받는 함수들을 얼마든지 끼워 넣을 수 있을 것이다.
+
+Multiple Results는 함수의 결과값을 여러 개로 리턴하는 개념이다. 자바스크립트에는 이런 기능이 없다. 하지만 이것을 대체하는 기능을 구현할 수 있다. 여러 개의 값을 모아 Multiple Results를 뜻하는 객체로 만든 후 파이프라인 안에서 Multiple Results에 담긴 인자를 다시 여러 개로 펼쳐서 실행하도록 구현하면 된다.
+
+##### [코드 4-21] Multiple Results
+<script>//```javascript
+_.mr = function() {
+  arguments._mr = true; // 인자들이 담긴 arguments 객체에 _mr로 구분자를 만듬
+  return arguments;
+};
+
+_.pipeline = function() {
+  var funs = arguments;
+
+  return function(seed) {
+    return _.reduce(funs,
+      function(l, r) {
+        // Multiple Results 라면 apply로 인자를 펼침
+        return l && l._mr ? r.apply(null, l) : r(l);
+      },
+      arguments.length < 2 ? seed : _.mr.apply(null, arguments));
+      // 인자가 여러 개라면 첫 번째 함수에게도 Multiple Results로 만들어서 넘기기
+  };
+}
+</script>```
+
+`apply`는 배열이나 `arguments` 객체를 받아 함수의 인자들로 펼쳐준다(spread). 함수를 실행하기 전 `l`이 Multiple Results라면 `r.apply()`를 이용해 `r` 함수에게 인자를 여러 개로 전달할 수 있도록 기능을 추가했다. 파이프라인의 첫 함수도 인자를 여러 개 받을 수 있도록 Multiple Results로 만들어 넘겨주었다. 다음 예제는 Multiple Results 사용법이다.
+
+##### [코드 4-22] Multiple Results 사용법
+<script>//```javascript
+function add(a, b) {
+  return a + b;
+}
+function square(a) {
+  return a * a;
+}
+function sub(a, b) {
+  return a - b
+}
+
+var f1 = _.pipeline(
+  add,
+  square,
+  function(a) {
+    return _.mr(a, a / 5); // Multiple Results
+  },
+  sub);
+
+console.log(f1(3, 2));
+// 20
+</script>```
+
+이제 `add`와 `sub` 같이 인자를 2개 이상 사용하는 일반 함수들도 파이프라인 사이에 넣을 수 있게 되었다.
+
+`_.pipeline`으로 함수를 정의하면 Multiple Results를 지원하는 함수가 되어, 함수를 중첩하기만 해도 마치 Go 언어처럼 동작한다.
+
+##### [코드 4-23]
+<script>//```javascript
+var add = _.pipeline(function(a, b) {
+  return a + b;
+});
+
+var sub = _.pipeline(function(a, b) {
+  return a - b;
+});
+
+function f1(a, b) {
+  return _.mr(a - 5, b / 2);
+}
+
+add(10, 20); // 일반 함수와 동일하게 사용됨
+// 30
+
+sub(10, 20); // 일반 함수와 동일하게 사용됨
+// -10
+
+add(f1(20, 10)); // add에게 넘겨지는 인자는 하나지만 2개처럼 동작
+// 20
+
+sub(f1(20, 10)); // sub에게 넘겨지는 인자는 하나지만 2개처럼 동작
+// 10
+</script>```
+
+2.5절에서도 이야기했듯 함수로 함수를 감싸거나 함수로 함수를 다루게 되면 원래의 함수에서 할 수 없던 다양한 일들도 가능하게 할 수 있다. 보이는 곳이든 숨겨진 곳이든 내가 원하는 곳에 실행 컨텍스트를 만든 후 원하는 때에 함수를 실행하면서 비동기를 제어하거나, Multiple Results를 지원하거나, 부분 적용을 하거나 파이프라인을 만들거나 하는 등 다양한 일을 할 수 있다. Promise도 이 같은 방법으로 비동기를 제어했다. 함수가 실행되는 괄호들 사이에서 자꾸 아이디어를 만들다 보면, 새롭고 재미있는 자바스크립트 코드를 많이 만나게 된다.
+
+</body>
+</html>

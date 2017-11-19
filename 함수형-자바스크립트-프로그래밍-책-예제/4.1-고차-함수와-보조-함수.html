@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="underscore.js"></script>
+</head>
+<body>
+
+4장에서는 고차 함수의 다양한 사례들을 통해 함수 조립에 대한 생각들을 확장하고자 한다. 고차 함수와 보조 함수에 대해서는 1장과 3장에서도 다뤘고 정의도 내렸었다. 유명한 고차 함수인 `map`, `filter`, `reduce` 등은 모두 배열이나 객체, 혹은 배열에 들어 있는 객체들을 다루기 위한 함수들이었다. 4장에서는 함수를 주재료로 다루는 함수들을 다룰 것이다. 함수와 협업하는 함수들을 만나보자.
+
+## 4.1.1 한 번만 실행하는 함수
+
+##### [코드 4-1] _.once
+<script>//```javascript
+var hi = _.once(function() {
+  console.log('hi');
+});
+
+hi();
+// hi
+hi();
+// 아무 일도 일어나지 않음
+</script>```
+
+`_.once`는 받아둔 익명 함수가 한 번만 실행되도록 설정된 함수를 리턴한다. 실무 경험이 많은 개발자라면 아마도 위와 같은 일이 언제 필요할지 알고 있을 것이다. 이런 기능을 구현하기 위해서는 `flag` 값이 필요하며 `flag` 값에 따라 실행할 것인지 말 것인지 대해 판단하는 로직이 어딘가에 있어야 한다. `_.once`에 해당 로직이 숨겨져 있다. `_.once`를 구현하면 다음과 같다.
+
+##### [코드 4-2] _.once 내부
+<script>//```javascript
+_.once = function(func) {
+  var flag, result;
+  return function() {
+    if (flag) return result;
+    flag = true;
+    return result = func.apply(this, arguments);
+  }
+};
+
+var a = _.once(function() {
+  console.log("A");
+  return "B";
+});
+
+console.log(a());
+// A
+// B
+console.log(a());
+// B
+</script>```
+
+이와 비슷한 콘셉트의 다른 함수를 만들어 보자.
+
+## 4.1.2 다시 물어보지 않는 함수
+
+##### [코드 4-3] skip 함수
+<script>//```javascript
+function skip(body) {
+  var yes;
+  return function() {
+    return yes || (yes = body.apply(null, arguments));
+  }
+}
+</script>```
+
+`skip` 함수는 일명 ‘다시 물어 보지 않는’ 함수다. 삭제할 때 확인창을 한 번만 띄우기 위해 `skip`을 사용해 보자.
+
+##### [코드 4-4] 삭제 버튼을 누르면 아이템이 삭제됩니다. 다시 물어보지 않을께요.
+```html
+<ul class="list">
+  <li>아이템1 <button>삭제</button></li>
+  <li>아이템2 <button>삭제</button></li>
+  <li>아이템3 <button>삭제</button></li>
+</ul>
+
+<script>
+var confirmRemove = skip(function() {
+  return confirm("삭제 버튼을 누르면 아이템이 삭제됩니다. 다시 물어보지 않을께요.");
+});
+
+$('.list').on('click', 'li button', function(e) {
+  confirmRemove() && $(e.currentTarget).closest('li').remove();
+});
+</script>
+```
+
+위 예제를 실행해서 삭제를 시도한 후 확인을 하고 나면 다음번 삭제부터는 확인 창이 뜨지 않고 바로 삭제가 된다. `skip`은 고차 함수이고 `body`는 `skip`이 남겨 놓은 로직을 완성하는 함수다. 함수형 자바스크립트는 함수로 함수를 다루거나 함수로 함수를 만드는 것의 반복이고, 고차 함수 응용의 반복이다.
+
+`skip`은 고차 함수이자 함수를 만드는 함수다. 함수로 함수를 만들 때는 재료로 함수가 사용되기도 하고 일반 값이 사용되기도 한다. 함수로 만들어진 함수는 대부분 클로저다. 계속해서 다양한 고차 함수와 보조 함수의 사례를 확인해 보자.
+
+## 4.1.3 앞서 받은 인자 혹은 상황을 변경해 나가는 경우
+
+`skip` 같은 함수는 앞서 만든 상황을 변경해 나가는 사례다. 처음에는 `false`로 시작했지만 `true`로 변경하여 이후 동작을 다르게 만들기 위해 사용한다. 이처럼 초기에 값을 받아둔 후 변경해 나가는 다른 사례를 확인해보자.
+
+##### [코드 4-5] id를 증가시키는 함수
+<script>//```javascript
+function idMaker(start) {
+  return function() {
+    return ++start;
+  }
+}
+
+var messageCid = idMaker(0);
+
+messageCid();
+// 1
+messageCid();
+// 2
+
+var postCid = idMaker(11);
+
+postCid();
+// 12
+postCid();
+// 13
+messageCid();
+// 3
+postCid();
+// 14
+</script>```
+
+
+`idMaker`는 원하는 시작점부터 시작해 실행할 때마다 증가한 고유한 아이디 값을 만드는 함수를 만드는 함수다. `idMaker`는 메신저 등을 만들 때 사용할 수 있다. 사용자가 메시지를 입력하고 엔터 키를 쳤을 때, 임시로 클라이언트 측 고유 아이디를 만들어 메시지에 해당하는 HTML 요소를 즉시 그려 둔 다음, 서버에게 정보를 보내어 DB에 저장하고 응답으로 온 데이터를, 만들어 두었던 클라이언트 측 고유 아이디를 기준으로 매핑한다. 응답이 오기도 전에 새로운 메시지를 빠르게 작성할 수 있어야 한다거나 즉각 응답을 보여 주어야 하는 메신저, 인스턴스 메시지 서비스의 특정 기능을 구현할 때 이런 기법이 필요하다.
+
+<script>//```javascript
+var message = { cid: messageCid(), body: "안녕?" };
+$('<div class="message" cid="'+message.cid+'">'+message.body+'</div>').append('#chat');
+$.post('/...', message).then(function(message) {
+  //...
+});
+</script>```
+
+## 4.1.4 앞서 받은 인자를 잘 유지해야 하는 경우
+
+클로저가 기억하고 있는 외부 변수도 일반 변수처럼 언제든지 값이 변경될 수 있다. 앞선 `_.once`, `skip`, `idMaker` 사례는 값이 변경되는 점을 이용한 기법이다. 이번에는 반대로 값을 잘 유지해야 하는 상황을 살펴볼 텐데, 이런 상황에서 생각보다 실수가 많이 생긴다.
+
+특히 앞서 받은 인자와 나중에 받은 인자를 조합하여 결과를 만들려고 할 때는 실수하기가 쉽다. 이럴 때는 계속 사용할 객체는 원래 상태를 잘 유지하도록, 한 번만 쓰이고 사라져야 할 값은 사라지도록 잘 관리해 주어야 한다. 앞서 받은 인자의 상태가 변경되지 않도록 `concat`이나 `slice`를 이용해 항상 새로운 객체를 만든다거나, `_.rest` 같은 함수를 이용해 인자의 일부분을 잘 제외시켜야 하는데, 이것을 어떤 타이밍에 하는지가 중요하다. 만들고자 하는 로직에 따라 항상 다르기 때문에 연습이 필요하다. 이러한 상황에서는 인자 개수가 가변적인 경우도 많아 `arguments`나 `apply` 등도 잘 활용해야 한다.
+
+다음 예제의 `method`는 객체의 메서드를 실행하는 함수를 만드는 함수다.
+
+##### [코드 4-6] 객체의 메서드를 실행하는 함수를 만드는 함수
+```html
+<div class="box" style="position: relative; background: red; width: 50px; height: 50px;"></div>
+
+<script>
+var method = function(method) {
+  var args = _.rest(arguments); // (1) 첫 번째 인자를 제외
+  return function(obj) {
+    return obj[method].apply(obj, args.concat(_.rest(arguments)));  // (2) 새 인자들 더하기
+  }
+};
+
+var bg = method('css', 'background-color');
+
+var $box = $('.box');
+
+console.log( bg($box) );
+// red
+bg($box, 'yellow');
+// div.box의 배경색이 yellow로 변경
+bg($box, 'purple');
+// div.box의 배경색이 purple로 변경
+console.log( bg($box) );
+// purple
+
+var fillBlack = method('css', 'background-color', 'black');
+
+fillBlack($box);
+// div.box의 배경색이 black으로 변경
+console.log( bg($box) );
+// black
+</script>
+```
+
+(1) 첫 번째 인자는 메서드 이름이므로, 이후에 합성할 인자들만 남기고자 `_.rest`로 첫 번째 인자를 제외한다.
+(2) 새로 들어온 인자 중 첫 번째는 메서드의 대상 객체이므로, 첫 번째 인자를 제외한 후 `concat`을 통해 이전에 받아둔 인자들에 새로 들어온 인자들을 더하여 실행한다. 사용하고자 하는 메서드에 따라 인자 개수 역시 가변적이므로 `apply`로 실행했다.
+
+만일 `concat`을 사용하지 않고 `push` 등을 사용했다면 인자는 기존 인자에 더해져 계속해서 늘어났을 것이다. `concat`은 원본은 그대로 두고 합성 된 새로운 배열을 리턴하므로 기존 배열은 변경되지 않는다. 이후에 다시 실행해도 최초 실행시 받아둔 인자들로 다시 시작하게 된다. 여기서 코딩을 잘못하면 실행할 때마다 이전에 넘긴 인자가 남는다거나 하는 오류를 일으킬 수 있다. 위 예제에서는 최초에 받을 인자와 이후 받을 인자의 개수가 정해져 있지 않기 때문에 `_.rest`와 `arguments` 객체를 적절히 활용했다.
+
+`method`는 함수를 만드는 함수다. `method` 함수는 인자들을 받아 함수를 리턴하고, 리턴된 함수는 이후에 객체와 추가 인자를 받는다. 그리고는 받은 객체의 메서드를 실행하면서 이전에 받은 인자와 새로 받은 인자를 합성하여 넘긴다. `method` 함수를 이용해 `bg`라는 함수를 만들었고, `bg`는 이후 인자의 개수에 따라 getter의 역할을 하기도 하고 setter의 역할을 하기도 한다. `fillBlack` 함수는 인자로 사용될 색(black)까지 미리 지정해서 검은색으로 칠하는 기능을 한다.
+
+다음 예제는 method를 이용해 애니메이션을 일으키는 함수다.
+
+##### [코드 4-7] 애니메이션
+<script>//```javascript
+var moveRight = method('animate', { left: '+=200' });
+var moveDown = method('animate', { top: '+=200' });
+
+moveDown(moveRight($box));
+// 오른쪽으로 이동 후 아래로 이동
+</script>```
+
+자바스크립트에서는 특히 인자 개수가 가변적이므로 위와 같은 기법을 주의 깊게 다뤄야 한다. `arguments`, `apply`, `_.rest`, `.concat` 등을 잘 사용하면 인자를 다루는 실용적인 다양한 해법들을 잘 만들 수 있다.
+
+</body>
+</html>

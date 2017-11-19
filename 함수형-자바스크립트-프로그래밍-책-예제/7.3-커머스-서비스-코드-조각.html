@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="partial.js"></script>
+</head>
+<body>
+
+## 7.3.1 장바구니에 담기 옵션 선택과 _.find
+
+여기에서는 커머스 서비스에서 사용할 만한 데이터와 흐름의 일부를 함수적으로 다뤄 본다. 커머스 서비스에서 나올 상황의 특정 부분을 단순화해서 표현한 코드 조각들이다. 함수형 자바스크립트의 실용성과 편리함을 확인해 보자.
+
+##### [코드 7-14] 상품 데이터
+<script>//```javascript
+var products = [
+  {
+    id: 1,
+    name: "반팔티",
+    price: 10000, // <--- 상품의 기본 가격
+    sizes: [
+      { name: "M", price: 0 },
+      { name: "L", price: 0 },
+      { name: "XL", price: 0 },
+      { name: "2XL", price: 1000 } // <--- 해당 상품의 사이즈별 추가 금액
+    ]
+  },
+  {
+    id: 2,
+    name: "후드티",
+    price: 21000,
+    sizes: [
+      { name: "L", price: -1000 },
+      { name: "XL", price: 0 },
+      { name: "2XL", price: 3000 }
+    ]
+  },
+  {
+    id: 3,
+    name: "맨투맨",
+    price: 16000,
+    sizes: [
+      { name: "L", price: 0 },
+      { name: "XL", price: 0 },
+      { name: "2XL", price: 2000 }
+    ]
+  }
+];
+</script>```
+
+상품 데이터가 위와 같다고 가정해 보았다. 상품에는 기본 가격이 있고 옵션에 따라 추가 금액이 생길 수도 있는 상황이다. 위 데이터를 기준으로 몇 가지 함수를 만들어보자.
+
+##### [코드 7-15] 선택한 상품과 선택한 옵션에 해당하는 금액을 뽑는 함수 1
+<script>//```javascript
+function order_price(product, size_name) {
+  return product.price + _.find(product.sizes, function(size) {
+    return size_name == size.name;
+  }).price;
+}
+
+console.log(
+  order_price(products[0], "XL"),
+  order_price(products[0], "2XL"),
+  order_price(products[1], "2XL"),
+  order_price(products[2], "L")
+);
+// 10000 11000 24000 16000
+</script>```
+
+상품과 사이즈명을 넘겨 주문 금액을 뽑는 함수를 만들었다. 선택된 상품의 `product.price`와 상품의 사이즈에 따른 옵션 가격을 합했다.
+
+자바스크립트 기본 객체로 데이터를 다루면 아래 `_.find_where` 같은 함수도 사용할 수 있다.
+
+##### [코드 7-16] 선택한 상품과 선택한 옵션에 해당하는 금액을 뽑는 함수 2
+<script>//```javascript
+function order_price(product, size_name) {
+  return product.price + _.find_where(product.sizes, { name: size_name }).price;
+}
+
+console.log(
+  order_price(products[0], "XL"),
+  order_price(products[0], "2XL"),
+  order_price(products[1], "2XL"),
+  order_price(products[2], "L")
+);
+// 10000 11000 24000 16000
+</script>```
+
+## 7.3.2 _.find_where
+
+잠깐 딴 데로 새서 재미있는 코드들을 확인해보자. `_.find_where`를 구현해보면서 함수 조합의 재미를 느껴보자.
+
+##### [코드 7-14] _.find_where 1
+<script>//```javascript
+_.find_where = function(list, attrs) {
+  return _.find(list, function(obj) {
+    var keys = _.keys(attrs);
+    for (var i = 0, l = keys.length, key; i < l; i++) {
+      key = keys[i];
+      if (obj[key] !== attrs[key]) return false;
+    }
+    return true;
+  });
+};
+
+console.log(
+  _.find_where([{ id: 1, name: "ID" }, { id: 2, name: "CJ" }], { id: 1 })
+);
+// { id: 1, name: "ID" }
+</script>```
+
+위와 같이 구현할 수 있다. 코드가 꽤 복잡하다. 다음의 코드 7-18처럼 동일한 로직을 가진 고차 함수를 선택하고 `predicate`로 형의 특성을 맞춰주는 식으로 `_.find_where`를 만들 수 있다. 이렇게 함수를 조합하는 식으로 만들면 정상 동작이 보장된 함수들이어서 오류를 낼 일도 줄게 되고, 코드도 단순해져 읽기도 쉬워진다.
+
+##### [코드 7-18] _.find_where 2
+<script>//```javascript
+_.find_where = function(list, attrs) {
+  return _.find(list, function(obj) {
+    return _.every(attrs, function(val, key) {
+      return obj[key] === val;
+    });
+  });
+};
+
+console.log(
+  _.find_where([{ id: 1, name: "ID" }, { id: 2, name: "CJ" }], { id: 1 })
+);
+// { id: 1, name: "ID" }
+</script>```
+
+더 작은 단위로 로직들에 이름을 지어 주어 작게 쪼개 보자. 작게 쪼개면 의도도 더 잘 드러난다.
+
+##### [코드 7-19] _.find_where 3
+<script>//```javascript
+_.is_match = function(a, b) {
+  return _.every(b, function(b_val, b_key) {
+    return a[b_key] === b_val;
+  });
+  // b의 key/value 모두가 a에도 포함되어 있으면 true
+};
+
+_.find_where = function(list, attrs) {
+  return _.find(list, function(obj) {
+    return _.is_match(obj, attrs);
+  });
+};
+
+console.log(
+  _.find_where([{ id: 1, name: "ID" }, { id: 2, name: "CJ" }], { id: 1 })
+);
+// { id: 1, name: "ID" }
+
+console.log(
+  _.is_match({ id: 5, name: "PJ" }, { id: 5 })
+);
+// true
+</script>```
+
+`_.is_match`라는 유용한 함수도 하나 얻었다.
+
+다음 위 코드에서 Partial.js의 함수 조합 기법을 더 사용하여 코드를 줄인 버전이다.
+
+##### [코드 7-20] _.find_where 4
+<script>//```javascript
+_.is_match = _.every(function(a, b_val, b_key) { return a[b_key] === b_val; });
+// 부분 커링 + predicate 에게 인자 더 넘기기
+
+_.find_where = function(list, attrs) {
+  return _.find(list, _(_.is_match, _, attrs));
+};
+</script>```
+
+Partial.js의 고차 함수는 부분 커링이 가능하고 predicate에게 더 많은 인자를 넘겨줄 수 있기 때문에 `_.is_match` 같은 함수를 코드 7-20 같이 구현할 수 있다.
+
+`_.find_where`의 `predicate` 부분에서도 `_` 함수를 이용했다. 코드 7-17과 비교해보면 매우 간결한 코드가 되었다.
+
+함수형 패러다임은 이 같은 기법들로 짧은 코드를 만들 수 있게 해 준다. 기본 객체를 이용하고 함수로 추상화하고 로직 작성을 함수 선택으로 대체하면 소프트웨어의 전체 코드가 매우 간결해진다. 다시 돌아가서 장바구니를 보자.
+
+## 7.3.3 장바구니에 담긴 상품들의 수량 합산하기와 _.reduce
+
+장바구니에는 담긴 상품들이 있고, 각각의 상품들에는 선택된 옵션과 수량이 있으며, 주문할 상품들을 선택할 수 있다고 가정했다. 장바구니에서 수량을 변경하거나 선택된 상품을 변경함에 따라, 합산된 가격과 수량을 뽑아서 보여주는 코드 조각이다. 우선 데이터 구조를 살펴보자.
+
+##### [코드 7-21] 장바구니에 담긴 상품 데이터
+<script>//```javascript
+var products = [
+  {
+    is_selected: true, // <--- 장바구니에서 체크 박스 선택
+    name: "반팔티",
+    price: 10000, // <--- 기본 가격
+    sizes: [ // <---- 장바구니에 담은 동일 상품의 사이즈 별 수량과 가
+      { name: "L", quantity: 2, price: 0 },
+      { name: "XL", quantity: 3, price: 0 },
+      { name: "2XL", quantity: 2, price: 2000 }, // <-- 옵션의 추가 가격
+    ]
+  },
+  {
+    is_selected: true,
+    name: "후드티",
+    price: 21000,
+    sizes: [
+      { name: "L", quantity: 3, price: -1000 },
+      { name: "2XL", quantity: 1, price: 2000 },
+    ]
+  },
+  {
+    is_selected: false,
+    name: "맨투맨",
+    price: 16000,
+    sizes: [
+      { name: "L", quantity: 4, price: 0 }
+    ]
+  }
+];
+</script>```
+
+위 데이터에서 `is_selected`는 장바구니에서 선택된 상품을 나타내고, `products[0].price`는 상품 1개 기준의 기본 가격이다. `products[0].sizes[0].price`는 옵션에 따른 1개 상품 기준의 추가 금액이고, `quantity`는 동일 상품 내의 사이즈별 주문 수량이다. 데이터가 위와 같이 준비되어 있다고 가정하고 코드를 작성해보자.
+
+배열 내의 상품 객체의 값을 순회하면서 `total_price`이나 `total_quantity` 같은 값을 구할 때는 `_.reduce`가 참 잘 어울린다. `_.reduce`는 코드에서 순회와 값을 모아두는 변수 등을 숨겨 관심사를 분리하고, 이를 통해 '어떤 key에 담긴 값을 합산할지'만 생각하게 해준다. 이와 같은 방식은 문제의 난이도를 쉽게 만들어준다.
+
+`_.reduce`는 객체가 중첩 구조로 되어 있을 때도 잘 어울린다.
+
+##### [코드 7-22] 선택된 상품 전체 수량 합산하기 1
+<script>//```javascript
+function selected_total_quantity(products) {
+  return _.reduce(products, function(quantity, product) {
+    if (!product.is_selected) return quantity;
+    return quantity + _.reduce(product.sizes, function(quantity, size) {
+      return quantity + size.quantity;
+    }, 0);
+  }, 0);
+}
+
+console.log( selected_total_quantity(products) );
+// 11
+</script>```
+
+위와 같은 방법도 있겠지만 코드 7-23처럼 `_.filter`를 통해 먼저 선택된 상품만 남기는 방법도 좋다. 이렇게 하면 `total_quantity`를 더 많은 경우에 사용할 수 있게 된다. 그리고 `quantity`를 `+`로 더하지 않고 내부 `_.reduce`에게 넘겨도 좋다. `+`가 하나 없는 이 작은 차이가 생각보다 코드를 꽤 간결하게 해 준다.
+
+##### [코드 7-23] 선택된 상품 전체 수량 합산하기 2
+<script>//```javascript
+function total_quantity(products) {
+  return _.reduce(products, function(quantity, product) {
+    return _.reduce(product.sizes, function(quantity, size) {
+        return quantity + size.quantity;
+      }, quantity); // <-- 인자로 사용
+  }, 0);
+}
+
+function selected_total_quantity(products) {
+  return total_quantity(_.filter(products, function(product) {
+    return product.is_selected;
+  }));
+}
+
+console.log( total_quantity(products) );
+// 15
+
+console.log( total_quantity([products[2]]) );
+// 4
+
+console.log( selected_total_quantity(products) );
+// 11
+</script>```
+
+`__` 파이프라인으로 함수를 정의하면 코드가 간결해진다.
+
+##### [코드 7-24] 선택된 상품 전체 수량 합산하기 3
+<script>//```javascript
+var selected_total_quantity = __(
+  _.filter(function(product) { return product.is_selected; }),
+  total_quantity);
+
+console.log( total_quantity(products) );
+// 15
+console.log( selected_total_quantity(products) );
+// 11
+
+/* _.filter 함수에 보조 함수에 문자열을 넣으면 자동으로 해당 key를 조회하는 predicate를 자동으로 만들어준다. */
+var selected_total_quantity = __(_.filter('is_selected'), total_quantity);
+console.log( selected_total_quantity(products) );
+// 11
+
+/* total_quantity 도 부분 커링으로 코드를 줄일 수 있다. */
+var total_quantity = _.reduce(function(quantity, product) {
+  return _.reduce(product.sizes, function(quantity, size) {
+      return quantity + size.quantity;
+    }, quantity);
+}, 0);
+</script>```
+
+## 7.3.4 장바구니에 담긴 상품들의 금액 합산하기와 _.reduce
+
+이번에는 합산 금액을 만들어보자.
+
+##### [코드 7-25] 선택된 상품 전체 금액 합산하기
+<script>//```javascript
+var total_price = _.reduce(function(price, product) {
+  return _.reduce(product.sizes, function(price, size) {
+    return price + (product.price + size.price) * size.quantity;
+  }, price);
+}, 0);
+
+console.log( total_price(products) );
+// 221000
+
+var selected_total_price = __(_.filter('is_selected'), total_price);
+
+console.log( selected_total_price(products) );
+// 157000
+</script>```
+
+`_.reduce`를 통해 상품의 개별 금액과 `sizes` 내부의 각기 다른 추가 금액과 수량에 따른 순회와 합산을 동시에 했다. 최초 시작 값을 인자로 계속 넘기면서 중첩 구조의 데이터를 중첩 구조의 `_.reduce`를 통해 값을 만들어가면, 문제가 매우 단순해진다. `for, if, i, j` 등이 보이지 않고 `products`의 데이터 구조만 보이기 때문에 의도도 잘 드러난다.
+
+이번에는 수량과 금액을 동시에 합산해 보자. 앞서 `+` 연산자를 없애고 인자로 내부 `_.reduce`에게 넘기는 식으로 코딩된 구조가 다음과 같은 상황에서는 더욱 이점으로 작용한다.
+
+##### [코드 7-26] 동시에 합산하기
+<script>//```javascript
+var total = _.reduce(function(total, product) {
+  return _.reduce(product.sizes, function(total, size) {
+    total.quantity += size.quantity;
+    total.price += (product.price + size.price) * size.quantity;
+    return total;
+  }, total);
+}, { quantity: 0, price: 0 });
+
+console.log( total(products) );
+// {quantity: 15, price: 221000}
+
+var selected_total = __(_.filter('is_selected'), total);
+
+console.log( selected_total(products) );
+// {quantity: 11, price: 157000}
+</script>```
+
+`_.reduce`는 위와 같은 상황들에서 사용하기 정말 좋다. AAA 처럼 생긴 데이터를 B 같이 생긴 데이터로 만들어야 할 때 사용한다. 다음 그림은 `_.filter, _.map, _.reduce`의 사용처를 명쾌하게 알려 준다.
+
+![](http://www.globalnerdy.com/wordpress/wp-content/uploads/2016/06/map-filter-reduce-in-emoji-1.png)
+
+## 7.3.5 다른 함수 조합으로 수량 합산 구하기 _.deep_pluck, _.reduce
+
+이 상황에서는 기본적으로는 `_.reduce`를 추천하지만 아래와 같은 합수 조합도 괜찮다.
+
+##### [코드 7-27]
+<script>//```javascript
+var total_quantity = function(products) {
+  var quantity_list = _.deep_pluck(products, 'sizes.quantity');
+  // [2, 3, 2, 3, 1, 4]
+  return _.reduce(quantity_list, function(a, b) {
+    return a + b;
+  });
+};
+
+console.log( total_quantity(products) );
+// 15
+</script>```
+
+위 코드도 파이프라인(`__`)으로 바꾸면 더 잘 읽히는 코드가 된다.
+
+##### [코드 7-28]
+<script>//```javascript
+var total_quantity = __(
+  _.deep_pluck('sizes.quantity'),
+  _.reduce(function(a, b) { return a + b; }));
+
+console.log( total_quantity(products) );
+// 15
+</script>```
+
+커머스 서비스에서 사용될 만한 코드 조각들을 보며 함수형 자바스크립트의 실용성과 편리함을 확인해 보았다. 함수형 자바스크립트의 대표적인 함수인 `_.map, _.filter, _.reject, _.find, _.some, _.every, _.reduce`는 정상 동작이 보장되어 있는 함수들이다. 이러한 함수들의 조합으로 로직을 만들면 안정성 높은 소프트웨어를 개발하고 운영하는 데 유리하다. 인자와 결과들만 맞아 떨어지면 정상적으로 동작하기 때문이다.
+
+함수형 프로그래밍은 분기가 적고 앞으로만 가는 함수들의 나열을 통해 복잡한 로직을 단순하게 한다. 작은 단위의 함수들의 나열은 나중에 언제 다시 읽어도 이해하기 쉽다. 클래스, 객체, 이벤트 등의 조합으로 로직이 복잡하게 얽혀 있는 코드, 혹은 그때그때 새롭게 만든 로직보다 함수 조합으로 만들어진 코드가 훨씬 이해하기 쉽고 협업하기 좋다. 단순하면서도 고쳐나가기 쉽고 안정성도 높은 좋은 프로그래밍 패러다임이다.
+
+</body>
+</html>

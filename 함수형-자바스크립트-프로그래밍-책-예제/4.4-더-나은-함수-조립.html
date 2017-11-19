@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="underscore.js"></script>
+  <script>var und = _;</script>
+  <script src="partial.js"></script>
+</head>
+<body>
+
+함수를 조립하는 데에도 함수가 사용된다. 함수를 재료로 사용하고, 재료를 함수로 실행하면서 로직을 완성한다. 함수로 함수를 만드는 방법들을 더 정교하게 잘 다루면 훨씬 다양하고 재밌게 조합할 수 있다. `_.partial`이나 `_.pipeline`의 기능을 높인다거나 그동안 살펴보았던 함수형 스타일의 함수들에게 부분 커링을 내장 하도록 한다거나 하면 함수 조립의 효과를 더욱 높일 수 있다. (부분 커링은 사실 필자가 만든 표현이다. 이 표현은 202쪽에서 확인할 수 있다.)
+
+여기 4.4절에서는 체인 방식을 대체하는 파이프라인 사례를 좀 더 확인할 것이다. 더 나은 파이프라인, 더 나은 부분 적용, 부분 커링이 무엇이며 각각이 어떻게 어울려 다양한 함수 조합 사례를 만드는지 확인해 보자.
+
+## 4.4.1 함수 조립과 Partial.js
+
+Partial.js는 필자와 필자의 팀이 함께 만든 함수형 자바스크립트 라이브러리다. Partial.js는 Underscore.js, Lodash 등의 주요 기능을 가지고 있고 더 발전적인 기능들도 제공하고 있다. Partial.js는 기존의 함수형 자바스크립트 라이브러리들보다 순수 함수를 이용한 함수 조립을 더욱 강조했고, 이를 위한 많은 기능을 제공한다. 함수 조립 외에도 비동기 제어, 템플릿 엔진 등 자바스크립트 프로그래밍에 필요한 다양한 기능을 제공하고 있다. 이번 절에서는 이 중 함수 조립에 관련된 이야기를 다룬다.
+
+***
+##### 참고
+이후 코드의 `_`은 Partial.js의 `_`이다. 헷갈릴 수 있겠지만 Lodash, Lazy.js 등의 많은 함수형 자바스크립트 라이브러리들이 `_`를 네임스페이스로 사용하고 있다. Partial.js의 경우 네임스페이스를 달리하여 Underscore.js나 Lodash와 함께 사용할 수도 있도록 지원하고 있다. 해당 방법은 5.1에서 소개한다.
+***
+
+## Partial.js의 _.pipe
+
+4.3에서 소개했던 마이클 포거스의 `_.pipeline`은 Multiple Results가 지원되지 않는 아쉬움이 있었다. 한 가지 아쉬운 점이 더 있는데, 파이프라인의 내부 함수에서 `this`를 사용할 수 없다는 점이다. 자바스크립트에서의 함수는 메서드이든 아니든 `this`를 사용할 수 있도록 되어 있다. 새로운 기능을 만들 때, 기존의 기본 기능을 유지하는 것은 언제나 중요한 일이다.
+
+Partial.js의 파이프라인 함수인 `_.pipe`는 Multiple Results와 `this`를 모두 지원한다. 그리고 Multiple Results를 사용할 수 있기 때문에 인자를 2개 이상 필요로 하는 함수도 함께 사용할 수 있고, `this`를 사용할 수 있기 때문에 메서드를 만들거나 `this`를 사용하는 라이브러리들과 협업이 가능하다.
+
+##### [코드 4-24] 파이프라인에서 this 사용
+<script>//```javascript
+// 정의 후 call을 통한 실행
+_.pipe(
+  function() {
+    return this.a;
+  },
+  console.log,    // 1;
+  function() {
+    this.b = 2;
+    return this;
+  },
+  console.log     // { a: 1, b: 2 };
+).call({ a: 1 }); // { a: 1 } 이 파이프라인 내부의 this가 된다.
+
+// . 으로 접근하여 메서드 실행
+var obj = {
+  a: 10,
+  method1: _.pipe(
+    function() {
+      return this.a;
+    },
+    console.log,    // 10;
+    function() {
+      this.b = 2;
+      return this;
+    },
+    console.log     // { a: 10, b: 2, method1: function };
+  )
+};
+obj.method1();
+</script>```
+
+개인적으로는 `this`를 거의 사용하지 않는다. 필자는 OOP 언어를 좋아했고, 자바스크립트에서도 `this`, `new`, `constructor`, `prototype`, `Proxy`, 이벤트 등의 객체지향적인 기능과 개념들을 충분히 사용하는 것을 매우 좋아했지만 지금은 거의 사용하지 않는다. `this`는 예측하기 어려운 상황을 만들고, 숨어 있는 상태나 흐름을 쫓아가는 것을 어렵게 한다. `this`가 사용된 코드는 테스트하기도 어렵다.
+
+자바스크립트에서도 대부분의 경우 `this` 없이 프로그래밍이 가능하고, `this`가 없어도 의존성을 줄일 수 있고 높은 수준의 모듈화를 이룰 수 있다. 그러나 자바스크립트에서 함수형 프로그래밍을 할 때는 `this` 문제를 어떻게 풀어갈 것인가에 대한 고민이 필요하다. 좀 더 자세히 말하면 이미 `this`가 쓰이고 있는 코드들과 함께 어떻게 어울리게 할 것인가 고민할 필요가 있다. 필자는 `this`를 인자와 동일한 개념으로 바라보고 접근하는 방식으로 풀어 가고 있다. 이런 관점은 227쪽 5.4절 에서 더 확인할 수 있다.
+
+## 4.4.3 즉시 실행 파이프라인 _.go
+
+`_.go`는 `_.pipe`의 즉시 실행 버전이다. 왼쪽에서 오른쪽, 위에서 아래로 읽는 것이 편하기에 첫 번째 인자를 파이프라인에서 사용할 인자로 정했다.
+
+##### [코드 4-25] _.go
+<script>//```javascript
+_.go(10,                        // <-- 인자
+  function(a) { return a / 2 }, // 10 / 2
+  function(a) { return a + 2 },
+  console.log);
+// 7
+</script>```
+
+## 4.4.4 문자열 화살표 함수
+
+##### [코드 4-26] ES6 화살표 함수
+<script>//```javascript
+_.go(10,
+  a => a / 2,
+  a => a + 2,
+  console.log);
+// 7
+</script>```
+
+2016년을 기준으로 자바스크립트에서 위와 같이 코딩할 수 있으면 얼마나 좋을까? Node.js에서는 이렇게 코딩할 수 있지만 브라우저에서는 이렇게 코딩할 수 없다. 물론 Babel을 활용하면 브라우저에서도 사용이 가능하지만 Babel을 사용하려면 여러 가지 불편함이 따른다(가장 대표적인 불편함은 디버깅이다). Partial.js는 문자열로 화살표 함수를 만드는 함수인 `_.l` 이 있으며, 메모이제이션을 통해 성능적 이슈를 줄였다.
+
+##### [코드 4-27] 문자열 화살표 함수
+<script>//```javascript
+_.go(10,
+  _.l('a => a / 2'),
+  _.l('a => a + 2'),
+  console.log);
+// 7
+</script>```
+
+## 4.4.5 Partial.js의 _.partial
+
+Partial.js의 `_.partial`은 4.2절에서 소개했었다. 앞에서 소개하지 않은 기능이 더 있는데, 바로 메서드에 인자를 부분 적용해 두는 기능이다. 첫 번째 인자로 함수 대신 문자열이 들어오면 객체의 메서드를 실행하기 위한 함수를 리턴한다. 그리고 나중에 객체와 추가 인자를 넘겨주면 된다.
+
+##### [코드 4-28] 메서드를 부분 적용한 새로운 함수 만들기
+<script>//```javascript
+var background = _.partial('css', 'background');
+background($('body'), 'green'); // $('body').css('background', 'green') 와 동일하게 동작
+// 배경색이 녹색으로 변함
+
+var concat = _.partial('concat');
+concat([1, 2], 3); // --> [1, 2].concat(3) 과 동일하게 동작
+// [1, 2, 3]
+</script>```
+
+## 4.4.6 Partial.js의 부분 커링
+
+파이프라인은 체인을 대체하며 좀 더 유연하다. 하나의 데이터에만 의존하는 체인보다 더 많은 가능성을 가진다. 한 가지 아쉬움이 있는데, 체인만큼 간결한 코드가 나오기 어렵다는 점이다. Partial.js는 파이프라인을 사용할 때도 보다 간결하게 코딩할 수 있도록, 주요 함수들이 부분 커링을 지원한다.
+
+부분 커링을 지원하지 않는 함수라면 원래 아래와 같이 코딩해야 한다.
+
+##### [코드 4-29] 부분 커링을 지원하지 않는 경우, 함수로 감싸기
+<script>//```javascript
+var values = function(data) {
+  return _.map(data, function(v) { return v; });
+};
+
+console.log(values({ a: 1, b: 2, c: 4 }));
+// [1, 2, 4]
+</script>```
+
+`_.partial`을 이용해도 꽤 복잡한 편이다.
+
+##### [코드 4-30] _.partial을 이용한 부분 적용
+<script>//```javascript
+var values = _.partial(_.map, _, function(v) { return v; });
+
+console.log(values({ a: 1, b: 2, c: 4 }));
+// [1, 2, 4]
+</script>```
+
+부분 커링을 지원하는 Partial.js의 `_.map`은 아래와 같이 코딩할 수 있어 편하다.
+
+##### [코드 4-31] 부분 커링이 지원되는 Partial.js의 고차 함수
+<script>//```javascript
+var values = _.map(function(v) { return v; });
+console.log(values({ a: 1, b: 2, c: 4 }));
+// [1, 2, 4]
+
+// 아래와 같이도 가능하다.
+var values = _.map(_.identity);
+console.log(values({ a: 1, b: 2, c: 4 }));
+// [1, 2, 4]
+
+var values = _.map(v=>v); // (ES6)
+console.log(values({ a: 1, b: 2, c: 4 }));
+// [1, 2, 4]
+</script>```
+
+Partial.js는 `_.map`과 같은 함수들에서 인자가 하나만 넘어올 경우 그 인자를 `iteratee` 자리에 부분 적용해 두고 `[]`를 받을 준비를 한다. 이런 방식은 원래 커링인데 부분 커링이라고 표현한 이유는 커링이 부분적으로만 동작하기 때문이다. 모든 인자에 대해 우향 혹은 좌향으로 커링이 되는 것이 정식 커링이라면 부분 커링은 실용적으로 특정 인자에 한해 커링이 되도록 준비해 둔 것을 말한다.
+
+##### [코드 4-32] 파이프라인 상황에서 비교하기
+<script>//```javascript
+var users = [
+  { id: 1, name: "ID", age: 32 },
+  { id: 2, name: "HA", age: 25 },
+  { id: 3, name: "BJ", age: 32 },
+  { id: 4, name: "PJ", age: 28 },
+  { id: 5, name: "JE", age: 27 },
+  { id: 6, name: "JM", age: 32 },
+  { id: 7, name: "HI", age: 24 }
+];
+
+/* 일반적 사용 */
+_.go(users,
+  function(users) {
+    return _.filter(users, function(u) { return u.age < 30; });
+  },
+  function(users) {
+    return _.pluck(users, 'name');
+  },
+  console.log);
+// ["HA", "PJ", "JE", "HI"]
+
+/* 부분 적용 */
+_.go(users,
+  _.partial(_.filter, _, function(u) { return u.age < 30; }),
+  _.partial(_.pluck, _, 'name'),
+  console.log);
+// ["HA", "PJ", "JE", "HI"]
+
+/* 부분 커링이 된다면 */
+_.go(users,
+  _.filter(function(u) { return u.age < 30; }),
+  _.pluck('name'),
+  console.log);
+// ["HA", "PJ", "JE", "HI"]
+
+/* Underscore.js 체인 */
+und.chain(users)
+   .filter(function(u) { return u.age < 30; })
+   .pluck('name')
+   .tap(console.log);
+// ["HA", "PJ", "JE", "HI"]
+</script>```
+
+마지막에 부분 커링이 되는 함수와 조합한 경우, 체인 방식과 코드 모양이 거의 동일하다. 충분히 깔끔한 코드이면서도 체인 방식이 아닌 파이프라인이기 때문에 사이사이에서 다양한 값과 로직을 보다 자유롭게 다룰 수 있다. 물론 `.tap()` 같은 해결책이 있는데, `.tap()`은 체인의 중간에서 조회 용도로 사용하는 것이 적합하다. 위에서 내려온 값의 메서드를 실행하는 식으로 값을 변경할 수 있지만 상태를 직접 변경하는 것은 위험하고, 해당 객체에 이미 지원되고 있는 메서드 외에는 사용이 불가능하다.
+
+Lodash에는 `.thru()` 함수를 통해 리턴값으로 체인 객체를 변경할 수 있어 좀 더 낫지만, 체인에서 사용 가능한 객체만 리턴 가능하다는 점이 번거롭다. 체인은 준비된 메서드나 규격에 맞춰서 사용해야 하지만 파이프라인은 아무 함수나 사용할 수 있어 더 유연하고 함수적이다. 클로저나 엘릭서 같은 함수형 언어들도 체인이 아닌 함수 중첩과 파이프라인을 사용한다.
+
+</body>
+</html>

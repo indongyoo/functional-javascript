@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="jquery.js"></script>
+  <script src="lodash.js"></script>
+  <script src="partial.js"></script>
+</head>
+<body>
+
+## 5.1.1 네임스페이스
+
+자바스크립트 진영에는 `_`를 네임스페이스로 사용하는 함수형 자바스크립트 라이브러리들이 많다. 이들은 모두 자신만의 특장점을 가지고 있지만 `_`를 네임스페이스로 사용하기 때문에 함께 사용하기는 어렵다. 대부분의 기능이 동일하므로 굳이 두 개 이상의 함수형 자바스크립트 라이브러리를 사용할 필요는 없다. Lodash도 Underscore.js와 같은 `_`를 사용하는 대신 Underscore.js의 기능을 대부분 가져왔다. Partial.js도 Underscore.js나 Lodash가 가진 대부분의 중요한 함수를 그대로 가지고 있다.
+
+Partial.js는 Underscore.js나 Lodash와 함께 사용할 수 있는 방법도 제공한다. Node.js나 AMD의 경우 원래 방식대로 원하는 네임스페이스를 지정하면 된다. 브라우저이고 AMD를 사용하지 않는다면 아래와 같은 순으로 불러오면 된다. 아래의 경우 `_p.each`는 Partial.js의 `each`이고 `_.each`는 Lodash의 `each`가 된다. 만일 `_p`가 맘에 들지 않으면 `window.p = _p;`처럼 원하는 방식으로 바꿔서 사용할 수 있다.
+
+<!--```html
+<script src="partial.js"></script>
+<script src="lodash.js"></script>
+<script>window.p = _p;</script>
+-->```
+
+부득이하게 불러오는 순서를 보장하지 못하는 경우가 있다면 다음 함수를 활용하면 된다. 전역에 선언된 `_previous_underscore`함수를 `var lodash = _previous_underscore();`처럼 실행하면 Partial.js가 불려지기 전에 전역에 있던 `_`를 얻을 수 있다. 마찬가지로 전역에 선언된 `_partial_namespace` 함수로 `var partial = _partial_namespace()`와 같이 실행하면 Partial.js의 `_`를 얻을 수 있다.
+
+이처럼 이미 Underscore.js나 Lodash를 사용하고 있더라도 문제없이 함께 사용할 수 있도록 다양한 기능을 지원하고 있으니, 가벼운 마음으로 Partial.js만의 추가적인 기능들이 무엇인지 확인해보자.
+
+## 5.1.2 즉시 실행 파이프라인, _.go와 _.mr
+
+4장에서 잠깐 확인했었던 `_.go`는 파이프라인의 즉시 실행 버전이다. 첫 번째 인자로 받은 값을 두 번째 인자로 받은 함수에게 넘겨주고, 두 번째 인자로 받은 함수의 결과는 세 번째 함수에게 넘겨준다. 이것을 반복하다가 마지막 함수의 결과를 리턴해 준다.
+
+##### [코드 5-1] _.go와 익명 함수
+<script>//```javascript
+_.go(10, // 첫 번째 함수에서 사용할 인자
+  function(a) { return a * 10 }, // 연속 실행할 함수 1
+  // 100
+  function(a) { return a - 50 }, // 연속 실행할 함수 2
+  // 50
+  function(a) { return a + 10 }); // 연속 실행할 함수 3
+  // 60
+</script>```
+
+`_.go`는 Multiple Results를 지원한다. `_.mr` 함수를 함께 사용하면 다음 함수에게 2개 이상의 인자들을 전달할 수 있다.
+
+##### [코드 5-2] _.mr로 여러 개의 인자 넘기기
+<script>//```javascript
+_.go(10, // 첫 번째 함수에서 사용할 인자
+  function(a) { return _.mr(a * 10, 50) }, // 두 개의 값을 리턴
+  function(a, b) { return a - b }, // 두 개의 인자를 받음
+  function(a) { return a + 10 });
+  // 60
+</script>```
+
+`_.go`의 첫 번째 인자는 두 번째 인자인 함수가 사용할 인자고 두 번째 부터는 파이프라인에서 사용할 함수들이다. `_.go`의 두 번째 인자인 함수, 즉 최초 실행될 함수에게 2개 이상의 인자를 넘기고자 한다면 그때도 `_.mr`을 사용하면 된다.
+
+##### [코드 5-3] 시작 인자로 _.mr 사용
+<script>//```javascript
+_.go(_.mr(2, 3),
+  function(a, b) {
+    return a + b;
+  },
+  function(a) {
+    return a * a;
+  });
+  // 25
+</script>```
+
+[코드 5-3]처럼 `_.mr`로 인자들을 감싸서 넘겨주면, 다음 함수는 인자를 여러 개로 펼쳐서 받게 된다. `_.mr(2, 3)`은 하나의 값이지만 `_.go` 내부에서 인자를 펼쳐서 넘겨주어, `2`와 `3`이 첫 번째 함수의 `a`와 `b`가 된다.
+
+`_.go`는 이미 정의되어 있는 함수와 조합하거나 화살표 함수와 사용할 때 특히 표현력이 좋다.
+
+##### [코드 5-4] 읽기 좋은 _.go
+<script>//```javascript
+function add(a, b) {
+  return a + b;
+}
+function square(a) {
+  return a * a;
+}
+_.go(_.mr(2, 3), add, square);
+// 25
+
+_.go(_.mr(2, 3), (a, b) => a + b, a => a * a);
+// 25
+</script>```
+
+## 5.1.3 함수를 만드는 파이프라인 _.pipe
+
+`_.go`가 즉시 실행하는 파이프라인이라면 `_.pipe`는 실행할 준비가 된 함수를 리턴하는 파이프라인 함수다. 그 외 모든 기능은 `_.go`와 동일하다.
+
+##### [코드 5-5] _.pipe
+<script>//```javascript
+var f1 = _.pipe(add, square);
+f1(2, 3);
+// 25
+
+var f2 = _.pipe((a, b) => a + b, a => a * a);
+f2(2, 3);
+// 25
+</script>```
+
+## 5.1.4 부분 커링 함수와의 조합
+
+파이프라인 함수를, 함수를 리턴하는 함수와 함께 사용해 보자.
+
+##### [코드 5-6] 부분 커링 지원
+<script>//```javascript
+var products = [
+  { id: 1, name: "후드 집업", discounted_price: 6000, price: 10000  },
+  { id: 2, name: "코잼 후드티", discounted_price: 8000, price: 8000  },
+  { id: 3, name: "A1 반팔티", discounted_price: 6000, price: 6000  },
+  { id: 4, name: "코잼 반팔티", discounted_price: 5000, price: 6000  }
+];
+
+_.go(products,
+  _.filter(function(p) { // (1)
+    return p.discounted_price < p.price;
+  }),
+  _.sortBy('discounted_price'),  // (2)
+  _.first,  // (3)
+  _.val('name'));  // (4)
+  // 코잼 반팔티
+</script>```
+
+위 코드를 순서대로 읽으면 아래와 같다.
+
+(1) `products`중에 할인 중인 상품만 남긴다.
+(2) `discounted_price`가 낮은 순으로 정렬한다.
+(3) 첫 번째를 꺼내서,
+(4) `product.name` 을 확인한다.
+
+Partial.js의 `_.filter`, `_.sortBy`, `_.val`은 모두 부분 커링이 된다. 모두 인자를 하나만 넘겨 앞으로 실행될 함수를 리턴 받았다. 그렇게 만들어진 함수들은 `_.go`를 통해 순서대로 실행된다. `products`는 각각의 함수를 모두 통과한 후 `코잼 반팔티`가 되었다.
+
+각 함수를 원래의 사용법으로 확인하면 다음 같다.
+
+##### [코드 5-7] 일반적인 함수 사용과 함수 중첩
+<script>//```javascript
+// (1) 변수로 리턴 받으면서 작성하는 방식
+var filtered_products = _.filter(products, function(p) {
+  return p.discounted_price < p.price;
+});
+var sorted_products = _.sortBy(filtered_products, 'discounted_price');
+var first_product = _.first(sorted_products);
+_.val(first_product, 'name');
+// 코잼 반팔티
+
+// (2) 모든 함수를 중첩하는 방식
+_.val(_.first(_.sortBy(_.filter(products, function(p) {
+  return p.discounted_price < p.price;
+}), 'discounted_price')), 'name');
+// 코잼 반팔티
+</script>```
+
+코드 5-7의 코드보다는 코드 5-6처럼 파이프라인과 부분 커링을 사용하여 순서대로 나열한 표현이 훨씬 읽기도 쉽고 변경도 용이하다. 코드 5-8에서는 화살표 함수를 사용했다.
+
+##### [코드 5-8] _.go를 통한 조합
+<script>//```javascript
+var products = [
+  { id: 1, name: "후드 집업", discounted_price: 6000, price: 10000  },
+  { id: 2, name: "코잼 후드티", discounted_price: 8000, price: 8000  },
+  { id: 3, name: "A1 반팔티", discounted_price: 6000, price: 6000  },
+  { id: 4, name: "코잼 반팔티", discounted_price: 5000, price: 6000  }
+];
+
+// 할인 상품 중 가격이 가장 낮은 상품의 이름
+_.go(products,
+  _.filter(p => p.discounted_price < p.price),
+  _.sortBy('discounted_price'),
+  _.first,
+  _.val('name'),
+  console.log);
+// 코잼 반팔티
+
+// 할인이 없는 상품 중 가격이 가장 낮은 상품의 id
+_.go(products,
+  _.reject(p => p.discounted_price < p.price),
+  _.sortBy('discounted_price'),
+  _.first,
+  _.val('id'),
+  console.log);
+// 3
+
+// 할인 상품 중 가격이 가장 높은 상품의 이름
+_.go(products,
+  _.filter(p => p.discounted_price < p.price),
+  _.sortBy('discounted_price'),
+  _.last,
+  _.val('name'),
+  console.log);
+// 후드 집업
+
+// 할인 상품 중 할인액이 가장 높은 상품의 이름
+_.go(products,
+  _.filter(p => p.discounted_price < p.price),
+  _.sortBy(p => p.discounted_price - p.price),
+  _.first,
+  _.val('name'),
+  console.log);
+// 후드 집업
+
+// 할인 상품 중 할인액이 가장 높은 상품의 이름 (위와 동일)
+_.go(products,
+  _.filter(p => p.discounted_price < p.price),
+  _.min(p => p.discounted_price - p.price),
+  _.val('name'),
+  console.log);
+// 후드 집업
+
+// 할인 상품 중 할인액이 가장 낮은 상품의 이름
+_.go(products,
+  _.filter(p => p.discounted_price < p.price),
+  _.max(p => p.discounted_price - p.price),
+  _.val('name'),
+  console.log);
+  // 코잼 반팔티
+</script>```
+
+중간중간 들어간 함수들의 조합을 약간씩 수정하여, 다른 로직으로 쉽게 변경할 수 있다. 할인이 진행 중인 상품들 중 제일 비싼 상품을 꺼낸다든지, 할인이 되지 않는 상품 중 제일 싼 상품을 꺼낸다든지 하는 로직으로 변경하는 것이 코드 5-8에서 알 수 있듯 매우 쉽다. 앞뒤로 로직을 추가하거나 빼기도 쉽다.
+
+## 5.1.5 보조 함수로 사용하는 파이프라인
+
+파이프라인을 보조 함수를 만들기 위해 사용하는 것도 좋다. 파이프라인을 `_.each`, `_.map`, `_.reduce` 등과 같은 고차 함수들의 보조 함수로 사용해보자.
+
+##### [코드 5-9] 파이프라인으로 보조 함수 만들기
+<script>//```javascript
+var products = [
+  { id: 1, name: "후드 집업", discounted_price: 6000, price: 10000  },
+  { id: 2, name: "코잼 후드티", discounted_price: 8000, price: 8000  },
+  { id: 3, name: "A1 반팔티", discounted_price: 6000, price: 6000  },
+  { id: 4, name: "코잼 반팔티", discounted_price: 5000, price: 6000  }
+];
+
+_.go(products,
+  _.filter(function(p) {
+    return p.discounted_price < p.price;
+  }),
+  _.map(_.pipe(_.idtt, _.pick(['id', 'name']), _.values)),
+  console.log);
+  // [[1,"후드 집업"],[4,"코잼 반팔티"]]
+</script>```
+
+`_.filter`에서는 할인 중인 상품만 남게 된다. `_.map`에서는 `iteratee`를 파이프라인으로 만들었다. `_.pipe`는 `_.idtt`를 통해 `iteratee`의 첫 번째 인자인 `product`만 리턴하게 되고, 부분 커링된 `_.pick`을 통해 `id`와 `name` 만 남은 객체로 만들게 된다. 마지막으로 `_.values`를 통해 값만 남겼다.
+
+Partial.js에서는 `_.pipe === __`이기 때문에 더 간결하게 표현할 수 있다. 화살표 함수를 사용하면 `_.go`로 변경하는 것이 더 어울린다.
+
+##### [코드 5-10]
+<script>//```javascript
+_.go(products,
+  _.filter(function(p) {
+    return p.discounted_price < p.price;
+  }),
+  _.map(__(_.idtt, _.pick(['id', 'name']), _.values)),
+  console.log);
+  // [[1,"후드 집업"],[4,"코잼 반팔티"]]
+
+_.go(products,
+  _.filter(function(p) {
+    return p.discounted_price < p.price;
+  }),
+  _.map(p=>_.go(p, _.pick(['id', 'name']), _.values)),
+  console.log);
+// [[1,"후드 집업"],[4,"코잼 반팔티"]]
+</script>```
+
+## 5.1.6 비동기와 _.go
+
+`_.go`는 비동기 제어를 지원한다. 2장과 4장에서, 함수를 실행하는 괄호와 인자를 받는 곳에서는 재미난 일들을 많이 할 수 있다고 했었다. Promise가 체인 방식에 함수적인 아이디어를 가미하여 비동기 상황을 제어했다면, `_.go`는 함수적으로만 비동기를 제어한다. `_.go`는 내부적으로 함수들을 순차적으로 실행해나가면서, 비동기 함수의 결과를 재귀 함수로 꺼낸 후, 다음 함수에게 이어주는 식으로 비동기 상황을 제어한다.
+
+`_.go`와 `_.pipe`는 일반 콜백 함수와 Promise를 모두 지원한다. `_.go`와 `_.pipe`는 기본적으로는 동기로 동작하지만 파이프라인의 함수들을 실행하는 도중에 `Promise` 객체가 리턴되거나 jQuery의 then과 같은 Deferred Object가 리턴되거나 `_.callback` 함수를 이용했다면, 내부적으로 비동기를 제어하는 파이프라인으로 변한다. 중간에 비동기를 만나지 않으면 예정대로 즉시 결과를 리턴한다.
+
+Promise의 경우에는 함수가 실행되면 즉시 `setTimeout`을 일으키고, 일단 `{ then: ... }`을 리턴하게 되므로 동기 함수들과 중첩 사용을 할 수 없다. 그러나 `_.go`의 경우에는 비동기 상황이 없을 경우 결과를 즉시 리턴하기 때문에, 이후 연속적으로 실행되는 함수들이 반드시 비동기성을 띨 필요가 없다. 덕분에 다른 외부 일반 함수들과의 조합성이 더 좋다.
+
+우선 일반적인 콜백 패턴의 비동기 함수를 파이프라인으로 제어하는 방법을 확인해보자.
+
+##### [코드 5-11] _.go의 비동기 함수 제어
+<script>//```javascript
+_.go(10,
+  _.callback(function(a, next) {
+    setTimeout(function() {
+      next(a + 10);
+    }, 100)
+  }),
+  function(a) { // next를 통해 받은 결과 a
+    console.log(a);
+    // 20
+  });
+</script>```
+
+위 상황에서 `_.go`는 첫 번째 함수를 실행하면서 내부적으로 `next`를 만들어 함수에게 넘긴다. `next`에게 결과를 전달하면 그 결과는 다음 함수의 인자로 넘어가게 된다. 다시 바깥으로 나와 그다음 함수들을 순차적으로 실행하므로 콜백 지옥에서 벗어날 수 있다.
+
+##### [코드 5-12] _.callback에 여러 개의 비동기 함수 넘기기
+<script>//```javascript
+(function() {
+
+  function add(a, b, next) {
+    setTimeout(function() {
+      next(a + b);
+    }, 1000);
+  }
+
+  function sub(a, b, next) {
+    setTimeout(function() {
+      next(a - b);
+    }, 1000);
+  }
+
+  function mul(a, b, next) {
+    setTimeout(function() {
+      next(a * b);
+    }, 1000);
+  }
+
+  function log(msg, next) {
+    setTimeout(function() {
+      console.log(msg);
+      next(msg);
+    }, 1000);
+  }
+
+  _.go(_.mr(5, 10), _.callback(
+    function(a, b, next) {
+      add(a, b, next);
+    },
+    function(result, next) {
+      sub(result, 10, next);
+    },
+    function(result, next) {
+      mul(result, 10, next);
+    },
+    function(result, next) {
+      log(result, next);
+    }));
+    // 50
+
+})();
+</script>```
+
+연속적으로 비동기 함수가 사용되어야 한다면 위와 같이 `_.callback` 함수에 여러 개의 함수를 넘겨도 되고, 아래와 같이 미리 `_.callback` 패턴이라고 지정해 두면 더욱 간결하게 코딩할 수 있다.
+
+##### [코드 5-13] _.callback으로 미리 지정해두기
+<script>//```javascript
+var add = _.callback(function(a, b, next) {
+  setTimeout(function() {
+    next(a + b);
+  }, 1000);
+});
+
+var sub = _.callback(function(a, b, next) {
+  setTimeout(function() {
+    next(a - b);
+  }, 1000);
+});
+
+var mul = _.callback(function(a, b, next) {
+  setTimeout(function() {
+    next(a * b);
+  }, 1000);
+});
+
+var log = _.callback(function(msg, next) {
+  setTimeout(function() {
+    console.log(msg);
+    next(msg);
+  }, 1000);
+});
+
+_.go(_.mr(5, 10),
+  add,
+  function(result) {
+    return sub(result, 10);
+  },
+  function(result) {
+    return mul(result, 100);
+  },
+  function(result) {
+    return log(result);
+  });
+  // 500
+</script>```
+
+코드 5-13처럼 `_.callback` 함수로 미리 정의해 둔 `add, sub` 등의 함수를 실행하면 그 함수는 `Promise` 객체를 리턴한다. 정확히는 `Promise`가 지원되는 환경에서는 `Promise` 객체를 리턴하고, `Promise`가 지원되지 않는 환경에서는 Partial.js 내부에 구현된 `Promise` 객체를 리턴한다. `Promise` 객체를 파이프라인이 다시 받아도 다시 비동기를 제어한다. 따라서 `Promise`가 지원되지 않는 환경에서도 파이프라인식의 비동기 제어가 가능하다. 브라우저에서도 별도의 `Promise` 라이브러리를 가져올 필요가 없다. `_.go`는 `Promise, Deferred Object`를 포함한 약식 `Promise`를 받으면 내부적으로 재귀를 돌며 비동기 함수의 결과를 기다렸다가 다음 함수들을 순차적으로 실행한다.
+
+`_.partial`을 함께 사용하면 더욱 코드를 간결하게 만들 수 있다.
+
+##### [코드 5-14] _.partial로 인자로 부분 적용하기
+<script>//```javascript
+_.go(_.mr(5, 10),
+  add,
+  _.partial(sub, _, 10),
+  _.partial(mul, 1000),
+  console.log);
+// 5000
+</script>```
+
+Partial.js에서 `_.partial` 함수는 `_.partial === _`이기 때문에 더 간결하게 표현할 수 있다. 참고로 Underscore.js의 `_`는 OOP 버전이고 Lodash의 `_`는 `_.chain`이다. Partial.js는 클로저를 만드는 함수인 `_.partia`l을 함수형 자바스크립트에서 가장 중요한 함수라고 여겨 `_`를 `_.partial`로 정했다. 인자를 비워두기 위한 키워드도 `_`이므로 `_.partial`이 `_`인 것이 가장 잘 어울린다고 생각한다.
+
+##### [코드 5-15] _.partial 간략 표기
+<script>//```javascript
+_.go(_.mr(5, 10),
+  add,
+  _(sub, _, 10),
+  _(mul, 10000),
+  console.log);
+// 50000
+</script>```
+
+## 5.1.7 중간에 멈추고 나가기
+
+일반 함수에서는 함수 중간 어디서든 `return` 문으로 함수를 빠져나올 수 있다. Partial.js는 파이프라인에서도 이와 같은 일이 가능하도록 지원하는데, 바로 `_.stop`이라는 함수를 이용하면 된다.
+
+##### [코드 5.16] 파이프라인 나가기
+<script>//```javascript
+_.go(null,
+  function() { console.log(1); },
+  function() { console.log(2); },
+  function() { return _.stop(); },
+  function() { console.log(3); },
+  function() { console.log(4); });
+/*
+* 결과:
+* 1
+* 2
+* */
+</script>```
+
+코드 5.16에서는 1과 2만 찍힌 후 세 번째 함수와 네 번째 함수는 실행되지 않고 파이프라인 전체를 나오게 된다. `_.go`의 최종 결과도 함께 전달하고 싶다면 `_.stop` 함수에게 전달하면 된다.
+
+##### [코드 5.17] 파이프라인 나가면서 값 리턴하기
+<script>//```javascript
+var result = _.go(null,
+  function() { console.log(1); },
+  function() { console.log(2); },
+  function() { return _.stop("하이"); },
+  function() { console.log(3); },
+  function() { console.log(4); });
+console.log(result);
+/*
+ * 결과:
+ * 1
+ * 2
+ * 하이
+ * */
+</script>```
+
+파이프라인의 사용법과 몇 가지 사례를 확인해보았다. 파이프라인은 앞으로도 자주 등장할 것이다. `_.go`, `_.pipe`의 가장 큰 장점은 잘게 쪼개서 코딩만 해두면 비동기 제어에 대한 준비도 이미 되어있다는 점이다. 이러한 특성 덕분에 동기 코딩과 비동기 코딩을 완전히 동일한 코드로 작성할 수 있다. 표현만 동일한 것이 아니라 동기로 끝날 상황과 비동기가 일어날 상황 모두를 하나의 코드로 동작시킬 수도 있다. `_.go`, `_.pipe`는 Promise를 대체하며, 그보다 더 나은 코드를 작성할 수 있게 해준다. Partial.js에는 `_.go`, `_.pipe` 외에도 비동기 제어에 대한 많은 아이디어와 기능이 담겨 있다. 이번에는 Partial.js의 비동기 제어에 대해 좀 더 알아보자.
+
+</body>
+</html>
