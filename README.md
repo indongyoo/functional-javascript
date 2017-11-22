@@ -3,6 +3,9 @@
 
 [Yes24](http://www.yes24.com/24/Goods/56885507?Acode=101) | [알라딘](http://www.aladin.co.kr/shop/wproduct.aspx?ItemId=123715872) | [교보문고](http://www.kyobobook.co.kr/product/detailViewKor.laf?ejkGb=KOR&mallGb=KOR&barcode=9788966262120&orderClick=LEA&Kc=) | [인터파크](http://shopping.interpark.com/product/productInfo.do?prdNo=5285478131&dispNo=008001083&smid1=common_prd)
 
+### 책 소개글
+ - http://www.insightbook.co.kr/12318
+
 ### 책 미리보기
  - https://github.com/indongyoo/functional-javascript/wiki
 
