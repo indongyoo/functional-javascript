@@ -32,6 +32,11 @@ for (var i = 0; i < temp_users.length; i++) {
 }
 console.log(names);
 
+var names = map(temp_users, function(user) {
+  return user.name;
+});
+console.log(names, "changed");
+
 // 3. 30세 미만인 users를 거른다.
 var temp_users = [];
 for (var i = 0; i < users.length; i++) {
@@ -53,3 +58,8 @@ for (var i = 0; i < temp_users.length; i++) {
   ages.push(temp_users[i].age);
 }
 console.log(ages);
+
+var ages = map(temp_users, function(user) {
+  return user.age;
+});
+console.log(ages, "changed");
