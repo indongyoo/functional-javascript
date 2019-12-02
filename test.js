@@ -20,7 +20,7 @@ for (var i = 0; i < users.length; i++) {
 console.log(temp_users);
 
 var temp_users = [];
-temp_users = filter(users, function(user) {
+temp_users = _filter(users, function(user) {
   return user.age >= 30;
 });
 console.log(temp_users, "changed");
@@ -32,7 +32,7 @@ for (var i = 0; i < temp_users.length; i++) {
 }
 console.log(names);
 
-var names = map(temp_users, function(user) {
+var names = _map(temp_users, function(user) {
   return user.name;
 });
 console.log(names, "changed");
@@ -47,7 +47,7 @@ for (var i = 0; i < users.length; i++) {
 console.log(temp_users);
 
 var temp_users = [];
-temp_users = filter(users, function(user) {
+temp_users = _filter(users, function(user) {
   return user.age < 30;
 });
 console.log(temp_users, "changed");
@@ -59,7 +59,7 @@ for (var i = 0; i < temp_users.length; i++) {
 }
 console.log(ages);
 
-var ages = map(temp_users, function(user) {
+var ages = _map(temp_users, function(user) {
   return user.age;
 });
 console.log(ages, "changed");

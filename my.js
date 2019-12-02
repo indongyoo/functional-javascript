@@ -10,18 +10,25 @@ function addMaker(a) {
 */
 
 // predicate : 매개값을 조사해서 true 또는 false를 리턴하는 역할 출처: https://palpit.tistory.com/673
-function filter(list, predicate) {
+function _filter(list, predicate) {
   var new_list = [];
-  for (var i = 0, len = list.length; i < len; i++) {
-    if (predicate(list[i])) new_list.push(list[i]);
-  }
+  _each(list, function(val) {
+    if (predicate(val)) new_list.push(val);
+  });
   return new_list;
 }
 
-function map(list, iteratee) {
+function _map(list, mapper) {
   var new_list = [];
-  for (var i = 0, len = list.length; i < len; i++) {
-    new_list.push(iteratee(list[i]));
-  }
+  _each(list, function(val) {
+    new_list.push(mapper(val));
+  });
   return new_list;
+}
+
+function _each(list, iter) {
+  for (var i = 0; i < list.length; i++) {
+    iter(list[i]);
+  }
+  return list;
 }
