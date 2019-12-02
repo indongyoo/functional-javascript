@@ -53,3 +53,7 @@ function _curryr(fn) {
         };
   };
 }
+
+var _get = _curryr(function(obj, key) {
+  return obj == null ? undefined : obj[key];
+});

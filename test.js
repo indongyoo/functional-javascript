@@ -71,3 +71,26 @@ console.log(sub(5, 1));
 
 var sub10 = sub(10);
 console.log(sub10(15));
+
+var user1 = users[0];
+console.log(_get("name")(user1));
+
+//_get 만들어 좀 더 간단하게 하기
+
+console.log(
+  _map(
+    _filter(users, function(user) {
+      return user.age >= 30;
+    }),
+    _get("name")
+  )
+);
+
+console.log(
+  _map(
+    _filter(users, function(user) {
+      return user.age < 30;
+    }),
+    _get("age")
+  )
+);
