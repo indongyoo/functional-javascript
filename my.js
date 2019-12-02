@@ -32,3 +32,24 @@ function _each(list, iter) {
   }
   return list;
 }
+
+//Haskell Curry 이름에서 유래 출처: https://itholic.github.io/haskell-function1-currying/
+function _curry(fn) {
+  return function(a, b) {
+    return arguments.length == 2
+      ? fn(a, b)
+      : function(b) {
+          return fn(a, b);
+        };
+  };
+}
+
+function _curryr(fn) {
+  return function(a, b) {
+    return arguments.length == 2
+      ? fn(a, b)
+      : function(b) {
+          return fn(b, a);
+        };
+  };
+}
